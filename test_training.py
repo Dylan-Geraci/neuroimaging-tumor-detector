@@ -15,7 +15,7 @@ print("\n1. Loading data (batch_size=4)...")
 train_loader, val_loader, test_loader = get_data_loaders(
     data_dir='data',
     batch_size=4,
-    num_workers=0  # Disable multiprocessing for debugging
+    num_workers=0  
 )
 
 print(f"   Train batches: {len(train_loader)}")
