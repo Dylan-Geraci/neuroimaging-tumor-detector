@@ -1,26 +1,33 @@
-# NOTE: For GPU (CUDA) support, install PyTorch separately first:
-# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-# Then install the rest: pip install -r requirements.txt
-#
-# For CPU-only, just run: pip install -r requirements.txt
-
-# Core dependencies
+# Core ML dependencies
 torch>=2.0.0
 torchvision>=0.15.0
-numpy<2.0.0  # PyTorch requires NumPy 1.x for now
+numpy<2.0.0  # PyTorch requires NumPy 1.x
 
-# Data handling
+# Data handling and preprocessing
 pillow>=10.0.0
 scikit-learn>=1.3.0
 
-# API
+# Visualization and evaluation
+matplotlib>=3.7.0
+seaborn>=0.13.0
+opencv-python>=4.8.0
+
+# Grad-CAM for model interpretability
+grad-cam>=1.5.0
+
+# Web application
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 python-multipart>=0.0.6  # For file uploads
 
-# Visualization and evaluation
-matplotlib>=3.7.0
-grad-cam>=1.5.0  # For explainability
+# Progress bars
+tqdm>=4.66.0
 
-
-tqdm>=4.66.0 
+# Installation notes:
+# For GPU (CUDA) support, install PyTorch separately first:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# Then install the rest:
+#   pip install -r requirements.txt
+#
+# For CPU-only:
+#   pip install -r requirements.txt
