@@ -16,8 +16,8 @@ from torchvision import transforms
 from PIL import Image
 import numpy as np
 
-from model import create_model
-from data import CLASSES
+from src.model import create_model
+from src.data import CLASSES
 
 
 def get_inference_transforms() -> transforms.Compose:

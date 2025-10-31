@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brain Tumor Classification</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>Brain Tumor Classification System</h1>
+            <p class="subtitle">MRI Analysis</p>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Upload Section -->
+            <section class="upload-section" id="uploadSection">
+                <div class="upload-area" id="uploadArea">
+                    <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <h2>Upload MRI Scan</h2>
+                    <p>Drag and drop an image here, or click to select</p>
+                    <p class="file-info">Supported formats: JPG, PNG</p>
+                    <input type="file" id="fileInput" accept="image/*" hidden>
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Analyzing MRI scan...</p>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section" id="resultsSection">
+                <!-- Prediction Box -->
+                <div class="prediction-box">
+                    <h2>Diagnosis</h2>
+                    <div class="prediction-result">
+                        <div class="prediction-class" id="predictionClass">-</div>
+                        <div class="confidence" id="confidence">-</div>
+                    </div>
+                </div>
+
+                <!-- Visualizations -->
+                <div class="visualizations">
+                    <div class="viz-item">
+                        <h3>Original MRI</h3>
+                        <img id="originalImage" alt="Original MRI" />
+                    </div>
+                    <div class="viz-item">
+                        <h3>Attention Heatmap</h3>
+                        <img id="heatmapImage" alt="Grad-CAM Heatmap" />
+                    </div>
+                    <div class="viz-item">
+                        <h3>Overlay</h3>
+                        <img id="overlayImage" alt="Overlay" />
+                    </div>
+                </div>
+
+                <!-- Probabilities -->
+                <div class="probabilities">
+                    <h3>Class Probabilities</h3>
+                    <div class="probability-bars" id="probabilityBars">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+                <!-- Reset Button -->
+                <button class="reset-btn" id="resetBtn">Analyze Another Image</button>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer>
+            <p>Model: ResNet18 | Test Accuracy: 97.10%</p>
+            <p class="disclaimer">DISCLAIMER: Not intended for clinical diagnosis.</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
