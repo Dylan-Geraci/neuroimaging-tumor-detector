@@ -58,7 +58,7 @@ python src/visualize.py
 
 ## Disclaimer
 
-Not intended for clinical diagnosis. Educational and research purposes only.
+Not intended for clinical diagnosis.
 
 ---
 
