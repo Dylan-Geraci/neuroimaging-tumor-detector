@@ -6,6 +6,12 @@ const loading = document.getElementById('loading');
 const resultsSection = document.getElementById('resultsSection');
 const resetBtn = document.getElementById('resetBtn');
 
+// File preview elements
+const filePreview = document.getElementById('filePreview');
+const fileList = document.getElementById('fileList');
+const clearBtn = document.getElementById('clearBtn');
+const uploadBtn = document.getElementById('uploadBtn');
+
 // Result elements
 const predictionClass = document.getElementById('predictionClass');
 const confidence = document.getElementById('confidence');
@@ -14,13 +20,29 @@ const heatmapImage = document.getElementById('heatmapImage');
 const overlayImage = document.getElementById('overlayImage');
 const probabilityBars = document.getElementById('probabilityBars');
 
+// Batch result elements
+const batchInfo = document.getElementById('batchInfo');
+const scanCount = document.getElementById('scanCount');
+const agreementIndicator = document.getElementById('agreementIndicator');
+const individualScans = document.getElementById('individualScans');
+const expandBtn = document.getElementById('expandBtn');
+const scansContainer = document.getElementById('scansContainer');
+const singleVisualizations = document.getElementById('singleVisualizations');
+const aggregatedPrediction = document.getElementById('aggregatedPrediction');
+
 // API endpoint
 const API_URL = window.location.origin;
+
+// Store selected files
+let selectedFiles = [];
 
 // Event Listeners
 uploadArea.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', handleFileSelect);
 resetBtn.addEventListener('click', resetApp);
+clearBtn.addEventListener('click', clearSelection);
+uploadBtn.addEventListener('click', uploadFiles);
+expandBtn.addEventListener('click', toggleIndividualScans);
 
 // Drag and drop
 uploadArea.addEventListener('dragover', (e) => {
@@ -36,71 +58,176 @@ uploadArea.addEventListener('drop', (e) => {
     e.preventDefault();
     uploadArea.classList.remove('dragover');
 
-    const files = e.dataTransfer.files;
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
     if (files.length > 0) {
-        handleFile(files[0]);
+        addFiles(files);
     }
 });
 
 // Handle file selection
 function handleFileSelect(e) {
-    const file = e.target.files[0];
-    if (file) {
-        handleFile(file);
+    const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+    if (files.length > 0) {
+        addFiles(files);
     }
 }
 
-// Handle file upload and prediction
-async function handleFile(file) {
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-        alert('Please upload an image file (JPG, PNG)');
+// Add files to selection
+function addFiles(files) {
+    selectedFiles = [...selectedFiles, ...files];
+    displayFilePreview();
+}
+
+// Display file preview
+function displayFilePreview() {
+    if (selectedFiles.length === 0) {
+        filePreview.classList.remove('active');
         return;
     }
 
+    fileList.innerHTML = '';
+
+    selectedFiles.forEach((file, index) => {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+
+        // Create thumbnail
+        const thumbnail = document.createElement('div');
+        thumbnail.className = 'file-thumbnail';
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        thumbnail.appendChild(img);
+
+        // File info
+        const fileInfo = document.createElement('div');
+        fileInfo.className = 'file-item-info';
+        fileInfo.innerHTML = `
+            <span class="file-name">${file.name}</span>
+            <span class="file-size">${formatFileSize(file.size)}</span>
+        `;
+
+        // Remove button
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'file-remove';
+        removeBtn.innerHTML = '&times;';
+        removeBtn.onclick = () => removeFile(index);
+
+        fileItem.appendChild(thumbnail);
+        fileItem.appendChild(fileInfo);
+        fileItem.appendChild(removeBtn);
+        fileList.appendChild(fileItem);
+    });
+
+    filePreview.classList.add('active');
+    uploadBtn.textContent = selectedFiles.length === 1 ? 'Analyze Scan' : `Analyze ${selectedFiles.length} Scans`;
+}
+
+// Format file size
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// Remove file from selection
+function removeFile(index) {
+    selectedFiles.splice(index, 1);
+    displayFilePreview();
+}
+
+// Clear selection
+function clearSelection() {
+    selectedFiles = [];
+    fileInput.value = '';
+    filePreview.classList.remove('active');
+}
+
+// Upload files
+async function uploadFiles() {
+    if (selectedFiles.length === 0) return;
+
     // Show loading state
     uploadArea.classList.add('hidden');
+    filePreview.classList.remove('active');
     loading.classList.add('active');
 
     // Prepare form data
     const formData = new FormData();
-    formData.append('file', file);
 
-    try {
-        // Call prediction API
-        const response = await fetch(`${API_URL}/predict`, {
-            method: 'POST',
-            body: formData
+    if (selectedFiles.length === 1) {
+        // Single file - use original endpoint
+        formData.append('file', selectedFiles[0]);
+
+        try {
+            const response = await fetch(`${API_URL}/predict`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                displaySingleResult(data);
+            } else {
+                throw new Error('Prediction failed');
+            }
+
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred during prediction. Please try again.');
+            resetApp();
+        }
+    } else {
+        // Multiple files - use batch endpoint
+        selectedFiles.forEach(file => {
+            formData.append('files', file);
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        try {
+            const response = await fetch(`${API_URL}/predict/batch`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                displayBatchResults(data);
+            } else {
+                throw new Error('Batch prediction failed');
+            }
+
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred during batch prediction. Please try again.');
+            resetApp();
         }
-
-        const data = await response.json();
-
-        if (data.success) {
-            displayResults(data);
-        } else {
-            throw new Error('Prediction failed');
-        }
-
-    } catch (error) {
-        console.error('Error:', error);
-        alert('An error occurred during prediction. Please try again.');
-        resetApp();
     }
 }
 
-// Display prediction results
-function displayResults(data) {
+// Display single scan result
+function displaySingleResult(data) {
     const { prediction, images } = data;
 
-    // Update prediction text
+    // Update prediction text - change header for single scan
+    aggregatedPrediction.querySelector('h2').textContent = 'Diagnosis';
     predictionClass.textContent = prediction.class.toUpperCase();
     confidence.textContent = `${(prediction.confidence * 100).toFixed(2)}% Confidence`;
 
-    // Update images
+    // Hide batch-specific elements
+    batchInfo.classList.add('hidden');
+    individualScans.classList.add('hidden');
+
+    // Show single visualizations
+    singleVisualizations.classList.remove('hidden');
     originalImage.src = images.original;
     heatmapImage.src = images.heatmap;
     overlayImage.src = images.overlay;
@@ -115,6 +242,105 @@ function displayResults(data) {
 
     // Smooth scroll to results
     resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Display batch results
+function displayBatchResults(data) {
+    const { aggregated_prediction, individual_predictions, processed_count } = data;
+
+    // Update aggregated prediction
+    aggregatedPrediction.querySelector('h2').textContent = 'Aggregated Diagnosis';
+    predictionClass.textContent = aggregated_prediction.class.toUpperCase();
+    confidence.textContent = `${(aggregated_prediction.confidence * 100).toFixed(2)}% Confidence`;
+
+    // Show batch info
+    batchInfo.classList.remove('hidden');
+    scanCount.textContent = `${processed_count} scans analyzed`;
+
+    // Agreement indicator
+    const agreement = aggregated_prediction.agreement_score;
+    agreementIndicator.textContent = `${(agreement * 100).toFixed(0)}% Agreement`;
+    agreementIndicator.className = 'agreement-indicator';
+    if (agreement === 1) {
+        agreementIndicator.classList.add('full-agreement');
+    } else if (agreement >= 0.75) {
+        agreementIndicator.classList.add('high-agreement');
+    } else if (agreement >= 0.5) {
+        agreementIndicator.classList.add('medium-agreement');
+    } else {
+        agreementIndicator.classList.add('low-agreement');
+    }
+
+    // Create aggregated probability bars
+    createProbabilityBars(aggregated_prediction.probabilities);
+
+    // Hide single visualizations
+    singleVisualizations.classList.add('hidden');
+
+    // Show individual scans section
+    individualScans.classList.remove('hidden');
+    displayIndividualScans(individual_predictions);
+
+    // Hide loading, show results
+    loading.classList.remove('active');
+    uploadSection.classList.add('hidden');
+    resultsSection.classList.add('active');
+
+    // Smooth scroll to results
+    resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Display individual scan results
+function displayIndividualScans(predictions) {
+    scansContainer.innerHTML = '';
+
+    predictions.forEach(pred => {
+        if (pred.error) {
+            // Show error card
+            const errorCard = document.createElement('div');
+            errorCard.className = 'scan-card error';
+            errorCard.innerHTML = `
+                <div class="scan-header">
+                    <span class="scan-filename">${pred.filename}</span>
+                    <span class="scan-error">Error: ${pred.error}</span>
+                </div>
+            `;
+            scansContainer.appendChild(errorCard);
+            return;
+        }
+
+        const scanCard = document.createElement('div');
+        scanCard.className = 'scan-card';
+
+        scanCard.innerHTML = `
+            <div class="scan-thumbnail">
+                <img src="${pred.images.original}" alt="${pred.filename}" />
+            </div>
+            <div class="scan-details">
+                <div class="scan-filename">${pred.filename}</div>
+                <div class="scan-prediction">${formatClassName(pred.class)}</div>
+                <div class="scan-confidence">${(pred.confidence * 100).toFixed(1)}%</div>
+            </div>
+            <div class="scan-overlay">
+                <img src="${pred.images.overlay}" alt="Overlay" />
+            </div>
+        `;
+
+        scansContainer.appendChild(scanCard);
+    });
+}
+
+// Toggle individual scans visibility
+function toggleIndividualScans() {
+    scansContainer.classList.toggle('expanded');
+    expandBtn.classList.toggle('expanded');
+
+    const btnText = expandBtn.querySelector('span');
+    if (scansContainer.classList.contains('expanded')) {
+        btnText.textContent = 'Hide Individual Scans';
+    } else {
+        btnText.textContent = 'View Individual Scans';
+    }
 }
 
 // Create probability bar visualizations
@@ -169,8 +395,9 @@ function formatClassName(name) {
 
 // Reset application
 function resetApp() {
-    // Reset file input
+    // Reset file input and selection
     fileInput.value = '';
+    selectedFiles = [];
 
     // Clear images
     originalImage.src = '';
@@ -181,12 +408,23 @@ function resetApp() {
     predictionClass.textContent = '-';
     confidence.textContent = '-';
     probabilityBars.innerHTML = '';
+    scansContainer.innerHTML = '';
 
     // Reset visibility
     resultsSection.classList.remove('active');
     loading.classList.remove('active');
     uploadSection.classList.remove('hidden');
     uploadArea.classList.remove('hidden');
+    filePreview.classList.remove('active');
+    singleVisualizations.classList.remove('hidden');
+    individualScans.classList.remove('hidden');
+    batchInfo.classList.remove('hidden');
+    scansContainer.classList.remove('expanded');
+    expandBtn.classList.remove('expanded');
+
+    // Reset expand button text
+    const btnText = expandBtn.querySelector('span');
+    btnText.textContent = 'View Individual Scans';
 
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });

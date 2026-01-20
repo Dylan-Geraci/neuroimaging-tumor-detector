@@ -28,7 +28,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Run web application
-python main.py
+python3 main.py
 # Visit http://localhost:8000/static/index.html
 ```
 

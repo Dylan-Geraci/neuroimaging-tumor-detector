@@ -22,10 +22,20 @@
                     <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                    <h2>Upload MRI Scan</h2>
-                    <p>Drag and drop an image here, or click to select</p>
-                    <p class="file-info">Supported formats: JPG, PNG</p>
-                    <input type="file" id="fileInput" accept="image/*" hidden>
+                    <h2>Upload MRI Scans</h2>
+                    <p>Drag and drop images here, or click to select</p>
+                    <p class="file-info">Supported formats: JPG, PNG | Select multiple scans for higher diagnostic confidence</p>
+                    <input type="file" id="fileInput" accept="image/*" multiple hidden>
+                </div>
+
+                <!-- File Preview Section -->
+                <div class="file-preview" id="filePreview">
+                    <h3>Selected Files</h3>
+                    <div class="file-list" id="fileList"></div>
+                    <div class="file-actions">
+                        <button class="clear-btn" id="clearBtn">Clear Selection</button>
+                        <button class="upload-btn" id="uploadBtn">Analyze Scans</button>
+                    </div>
                 </div>
 
                 <div class="loading" id="loading">
@@ -36,17 +46,42 @@
 
             <!-- Results Section -->
             <section class="results-section" id="resultsSection">
-                <!-- Prediction Box -->
-                <div class="prediction-box">
-                    <h2>Diagnosis</h2>
+                <!-- Aggregated Prediction Box -->
+                <div class="prediction-box" id="aggregatedPrediction">
+                    <h2>Aggregated Diagnosis</h2>
                     <div class="prediction-result">
                         <div class="prediction-class" id="predictionClass">-</div>
                         <div class="confidence" id="confidence">-</div>
                     </div>
+                    <div class="batch-info" id="batchInfo">
+                        <span class="scan-count" id="scanCount"></span>
+                        <span class="agreement-indicator" id="agreementIndicator"></span>
+                    </div>
                 </div>
 
-                <!-- Visualizations -->
-                <div class="visualizations">
+                <!-- Aggregated Probabilities -->
+                <div class="probabilities">
+                    <h3>Aggregated Class Probabilities</h3>
+                    <div class="probability-bars" id="probabilityBars">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+                <!-- Individual Scans Section -->
+                <div class="individual-scans" id="individualScans">
+                    <button class="expand-btn" id="expandBtn">
+                        <span>View Individual Scans</span>
+                        <svg class="expand-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div class="scans-container" id="scansContainer">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+                <!-- Single Scan Visualizations (for single file upload) -->
+                <div class="visualizations" id="singleVisualizations">
                     <div class="viz-item">
                         <h3>Original MRI</h3>
                         <img id="originalImage" alt="Original MRI" />
@@ -61,16 +96,8 @@
                     </div>
                 </div>
 
-                <!-- Probabilities -->
-                <div class="probabilities">
-                    <h3>Class Probabilities</h3>
-                    <div class="probability-bars" id="probabilityBars">
-                        <!-- Dynamically populated -->
-                    </div>
-                </div>
-
                 <!-- Reset Button -->
-                <button class="reset-btn" id="resetBtn">Analyze Another Image</button>
+                <button class="reset-btn" id="resetBtn">Analyze More Images</button>
             </section>
         </main>
 
