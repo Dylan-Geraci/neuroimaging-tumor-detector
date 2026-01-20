@@ -49,7 +49,7 @@ python src/visualize.py
 
 - **Architecture**: ResNet18 (pre-trained on ImageNet, fine-tuned on MRI data)
 - **Input**: Grayscale MRI (224×224, single channel)
-- **Training**: 14 epochs, Adam optimizer, data augmentation
+- **Training**: 30 epochs, Adam optimizer, data augmentation
 - **Dataset**: 7,000+ brain MRI images across 4 classes
 
 ## Dataset
