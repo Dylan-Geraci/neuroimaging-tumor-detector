@@ -269,15 +269,27 @@ async def predict_batch(files: List[UploadFile] = File(...)) -> JSONResponse:
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
 
+    print(f"Batch prediction: received {len(files)} files")
+    for f in files:
+        print(f"  - {f.filename} (type: {f.content_type})")
+
     individual_predictions = []
     from pytorch_grad_cam.utils.image import show_cam_on_image
 
     for file in files:
-        # Validate file type
-        if not file.content_type.startswith("image/"):
-            continue  # Skip non-image files
+        # Validate file type - be more permissive
+        content_type = file.content_type or ""
+        filename = file.filename or ""
+        is_image = (
+            content_type.startswith("image/") or
+            filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'))
+        )
+        if not is_image:
+            print(f"Skipping non-image file: {filename} (content_type: {content_type})")
+            continue
 
         try:
+            print(f"Processing file: {filename}")
             # Read image
             contents = await file.read()
             image = Image.open(io.BytesIO(contents)).convert('L')  # Grayscale
@@ -329,7 +341,10 @@ async def predict_batch(files: List[UploadFile] = File(...)) -> JSONResponse:
             })
 
         except Exception as e:
-            # Skip files that fail processing
+            # Log and skip files that fail processing
+            print(f"Error processing {file.filename}: {str(e)}")
+            import traceback
+            traceback.print_exc()
             individual_predictions.append({
                 'filename': file.filename,
                 'error': str(e)

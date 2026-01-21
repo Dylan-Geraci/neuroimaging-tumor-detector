@@ -11,6 +11,7 @@ const filePreview = document.getElementById('filePreview');
 const fileList = document.getElementById('fileList');
 const clearBtn = document.getElementById('clearBtn');
 const uploadBtn = document.getElementById('uploadBtn');
+const addMoreBtn = document.getElementById('addMoreBtn');
 
 // Result elements
 const predictionClass = document.getElementById('predictionClass');
@@ -43,6 +44,7 @@ resetBtn.addEventListener('click', resetApp);
 clearBtn.addEventListener('click', clearSelection);
 uploadBtn.addEventListener('click', uploadFiles);
 expandBtn.addEventListener('click', toggleIndividualScans);
+addMoreBtn.addEventListener('click', () => fileInput.click());
 
 // Drag and drop
 uploadArea.addEventListener('dragover', (e) => {
@@ -66,25 +68,45 @@ uploadArea.addEventListener('drop', (e) => {
 
 // Handle file selection
 function handleFileSelect(e) {
-    const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+    const rawCount = e.target.files.length;
+    const debugInfo = document.getElementById('debugInfo');
+    debugInfo.textContent = `Files from dialog: ${rawCount}`;
+
+    const files = Array.from(e.target.files).filter(f => {
+        // Check MIME type or file extension for images
+        const isImageType = f.type.startsWith('image/');
+        const hasImageExtension = /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(f.name);
+        return isImageType || hasImageExtension;
+    });
+
+    debugInfo.textContent = `Files from dialog: ${rawCount}, After filter: ${files.length}`;
+
     if (files.length > 0) {
         addFiles(files);
     }
+    // Reset input so selecting same files again triggers change event
+    e.target.value = '';
 }
 
 // Add files to selection
 function addFiles(files) {
     selectedFiles = [...selectedFiles, ...files];
+    console.log('Total files now:', selectedFiles.length, selectedFiles.map(f => f.name));
     displayFilePreview();
+    // DON'T auto-upload - user must click the button
 }
 
 // Display file preview
 function displayFilePreview() {
+    const fileCountEl = document.getElementById('fileCount');
+
     if (selectedFiles.length === 0) {
         filePreview.classList.remove('active');
+        fileCountEl.textContent = '0';
         return;
     }
 
+    fileCountEl.textContent = selectedFiles.length;
     fileList.innerHTML = '';
 
     selectedFiles.forEach((file, index) => {
@@ -145,6 +167,8 @@ function clearSelection() {
 // Upload files
 async function uploadFiles() {
     if (selectedFiles.length === 0) return;
+
+    console.log('Uploading files:', selectedFiles.length, selectedFiles.map(f => f.name));
 
     // Show loading state
     uploadArea.classList.add('hidden');
@@ -246,7 +270,9 @@ function displaySingleResult(data) {
 
 // Display batch results
 function displayBatchResults(data) {
+    console.log('Batch results received:', data);
     const { aggregated_prediction, individual_predictions, processed_count } = data;
+    console.log('Individual predictions count:', individual_predictions.length);
 
     // Update aggregated prediction
     aggregatedPrediction.querySelector('h2').textContent = 'Aggregated Diagnosis';
@@ -292,6 +318,7 @@ function displayBatchResults(data) {
 
 // Display individual scan results
 function displayIndividualScans(predictions) {
+    console.log('Displaying individual scans:', predictions.length);
     scansContainer.innerHTML = '';
 
     predictions.forEach(pred => {
@@ -332,6 +359,7 @@ function displayIndividualScans(predictions) {
 
 // Toggle individual scans visibility
 function toggleIndividualScans() {
+    console.log('Toggle clicked, current expanded state:', scansContainer.classList.contains('expanded'));
     scansContainer.classList.toggle('expanded');
     expandBtn.classList.toggle('expanded');
 
@@ -341,7 +369,11 @@ function toggleIndividualScans() {
     } else {
         btnText.textContent = 'View Individual Scans';
     }
+    console.log('New expanded state:', scansContainer.classList.contains('expanded'));
 }
+
+// Make toggle function globally accessible for fallback
+window.toggleIndividualScans = toggleIndividualScans;
 
 // Create probability bar visualizations
 function createProbabilityBars(probabilities) {

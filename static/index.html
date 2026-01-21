@@ -24,13 +24,17 @@
                     </svg>
                     <h2>Upload MRI Scans</h2>
                     <p>Drag and drop images here, or click to select</p>
-                    <p class="file-info">Supported formats: JPG, PNG | Select multiple scans for higher diagnostic confidence</p>
+                    <p class="file-info">Supported formats: JPG, PNG | Hold Cmd and click to select multiple files</p>
                     <input type="file" id="fileInput" accept="image/*" multiple hidden>
                 </div>
+                <p id="debugInfo" style="text-align:center; color:#666; margin-top:10px;"></p>
 
                 <!-- File Preview Section -->
                 <div class="file-preview" id="filePreview">
-                    <h3>Selected Files</h3>
+                    <div class="file-preview-header">
+                        <h3>Selected Files: <span id="fileCount">0</span></h3>
+                        <button class="add-more-btn" id="addMoreBtn">+ Add More</button>
+                    </div>
                     <div class="file-list" id="fileList"></div>
                     <div class="file-actions">
                         <button class="clear-btn" id="clearBtn">Clear Selection</button>
@@ -69,9 +73,9 @@
 
                 <!-- Individual Scans Section -->
                 <div class="individual-scans" id="individualScans">
-                    <button class="expand-btn" id="expandBtn">
+                    <button class="expand-btn" id="expandBtn" onclick="toggleIndividualScans()">
                         <span>View Individual Scans</span>
-                        <svg class="expand-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg class="expand-icon" width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                         </svg>
                     </button>
