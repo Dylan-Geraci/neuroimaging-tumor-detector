@@ -68,18 +68,12 @@ uploadArea.addEventListener('drop', (e) => {
 
 // Handle file selection
 function handleFileSelect(e) {
-    const rawCount = e.target.files.length;
-    const debugInfo = document.getElementById('debugInfo');
-    debugInfo.textContent = `Files from dialog: ${rawCount}`;
-
     const files = Array.from(e.target.files).filter(f => {
         // Check MIME type or file extension for images
         const isImageType = f.type.startsWith('image/');
         const hasImageExtension = /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(f.name);
         return isImageType || hasImageExtension;
     });
-
-    debugInfo.textContent = `Files from dialog: ${rawCount}, After filter: ${files.length}`;
 
     if (files.length > 0) {
         addFiles(files);
