@@ -353,7 +353,6 @@ function displayIndividualScans(predictions) {
 
 // Toggle individual scans visibility
 function toggleIndividualScans() {
-    console.log('Toggle clicked, current expanded state:', scansContainer.classList.contains('expanded'));
     scansContainer.classList.toggle('expanded');
     expandBtn.classList.toggle('expanded');
 
@@ -363,7 +362,6 @@ function toggleIndividualScans() {
     } else {
         btnText.textContent = 'View Individual Scans';
     }
-    console.log('New expanded state:', scansContainer.classList.contains('expanded'));
 }
 
 // Make toggle function globally accessible for fallback
