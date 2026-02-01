@@ -4,14 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Brain Tumor Classification</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
     <div class="container">
         <!-- Header -->
         <header>
-            <h1>Brain Tumor Classification System</h1>
-            <p class="subtitle">MRI Analysis</p>
+            <h1>Brain Tumor Classifier</h1>
+            <p class="subtitle">Upload MRI scans for AI-assisted classification</p>
         </header>
 
         <!-- Main Content -->
@@ -19,9 +22,7 @@
             <!-- Upload Section -->
             <section class="upload-section" id="uploadSection">
                 <div class="upload-area" id="uploadArea">
-                    <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
+                    <div class="upload-icon-circle" aria-hidden="true">+</div>
                     <h2>Upload MRI Scans</h2>
                     <p>Drag and drop images here, or click to select</p>
                     <p class="file-info">Supported formats: JPG, PNG | Hold Cmd and click to select multiple files</p>
@@ -42,8 +43,8 @@
                 </div>
 
                 <div class="loading" id="loading">
-                    <div class="spinner"></div>
-                    <p>Analyzing MRI scan...</p>
+                    <div class="spinner"><span></span><span></span><span></span></div>
+                    <p>Analyzing...</p>
                 </div>
             </section>
 
@@ -100,17 +101,18 @@
                 </div>
 
                 <!-- Reset Button -->
-                <button class="reset-btn" id="resetBtn">Analyze More Images</button>
+                <button class="reset-btn" id="resetBtn">Start Over</button>
+                <p class="reset-hint">Upload new scans for classification</p>
             </section>
         </main>
 
         <!-- Footer -->
         <footer>
-            <p>Model: ResNet18 | Test Accuracy: 97.10%</p>
-            <p class="disclaimer">DISCLAIMER: Not intended for clinical diagnosis.</p>
+            <p class="model-info">ResNet18 model &middot; 97.10% test accuracy</p>
+            <p class="disclaimer">This tool is not intended for clinical diagnosis.</p>
         </footer>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=2"></script>
 </body>
 </html>

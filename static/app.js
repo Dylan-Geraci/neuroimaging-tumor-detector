@@ -131,6 +131,7 @@ function displayFilePreview() {
         fileItem.appendChild(thumbnail);
         fileItem.appendChild(fileInfo);
         fileItem.appendChild(removeBtn);
+        fileItem.style.animation = `fadeUp 0.3s cubic-bezier(0.22, 1, 0.36, 1) ${index * 0.03}s both`;
         fileList.appendChild(fileItem);
     });
 
@@ -237,7 +238,7 @@ function displaySingleResult(data) {
 
     // Update prediction text - change header for single scan
     aggregatedPrediction.querySelector('h2').textContent = 'Diagnosis';
-    predictionClass.textContent = prediction.class.toUpperCase();
+    predictionClass.textContent = formatClassName(prediction.class);
     confidence.textContent = `${(prediction.confidence * 100).toFixed(2)}% Confidence`;
 
     // Hide batch-specific elements
@@ -270,7 +271,7 @@ function displayBatchResults(data) {
 
     // Update aggregated prediction
     aggregatedPrediction.querySelector('h2').textContent = 'Aggregated Diagnosis';
-    predictionClass.textContent = aggregated_prediction.class.toUpperCase();
+    predictionClass.textContent = formatClassName(aggregated_prediction.class);
     confidence.textContent = `${(aggregated_prediction.confidence * 100).toFixed(2)}% Confidence`;
 
     // Show batch info
@@ -315,7 +316,7 @@ function displayIndividualScans(predictions) {
     console.log('Displaying individual scans:', predictions.length);
     scansContainer.innerHTML = '';
 
-    predictions.forEach(pred => {
+    predictions.forEach((pred, index) => {
         if (pred.error) {
             // Show error card
             const errorCard = document.createElement('div');
@@ -332,6 +333,7 @@ function displayIndividualScans(predictions) {
 
         const scanCard = document.createElement('div');
         scanCard.className = 'scan-card';
+        scanCard.style.animationDelay = `${index * 0.06}s`;
 
         scanCard.innerHTML = `
             <div class="scan-thumbnail">
@@ -374,13 +376,15 @@ function createProbabilityBars(probabilities) {
     // Sort by probability (descending)
     const sorted = Object.entries(probabilities).sort((a, b) => b[1] - a[1]);
 
-    sorted.forEach(([className, prob]) => {
+    sorted.forEach(([className, prob], index) => {
         const probItem = document.createElement('div');
         probItem.className = 'prob-item';
 
         const label = document.createElement('div');
         label.className = 'prob-label';
-        label.textContent = formatClassName(className);
+        const labelText = document.createElement('span');
+        labelText.textContent = formatClassName(className);
+        label.appendChild(labelText);
 
         const barContainer = document.createElement('div');
         barContainer.className = 'prob-bar-container';
@@ -394,15 +398,15 @@ function createProbabilityBars(probabilities) {
         value.textContent = `${(prob * 100).toFixed(2)}%`;
 
         barContainer.appendChild(bar);
+        label.appendChild(value);
         probItem.appendChild(label);
         probItem.appendChild(barContainer);
-        probItem.appendChild(value);
         probabilityBars.appendChild(probItem);
 
-        // Animate bar
+        // Animate bar with stagger
         setTimeout(() => {
             bar.style.width = `${prob * 100}%`;
-        }, 100);
+        }, 100 + (index * 80));
     });
 }
 
