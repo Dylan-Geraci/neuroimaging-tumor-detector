@@ -31,6 +31,14 @@ const scansContainer = document.getElementById('scansContainer');
 const singleVisualizations = document.getElementById('singleVisualizations');
 const aggregatedPrediction = document.getElementById('aggregatedPrediction');
 
+// Upload progress elements
+const uploadProgress = document.getElementById('uploadProgress');
+const uploadText = document.getElementById('uploadText');
+const progressBarFill = document.getElementById('progressBarFill');
+const progressPercent = document.getElementById('progressPercent');
+const analysisSpinner = document.getElementById('analysisSpinner');
+const analysisText = document.getElementById('analysisText');
+
 // API endpoint
 const API_URL = window.location.origin;
 
@@ -207,78 +215,114 @@ function clearSelection() {
     filePreview.classList.remove('active');
 }
 
+// --- Upload progress helpers ---
+
+function showUploadPhase(fileCount) {
+    const label = fileCount === 1 ? 'Uploading scan...' : `Uploading ${fileCount} scans...`;
+    uploadText.textContent = label;
+    progressBarFill.style.width = '0%';
+    progressPercent.textContent = '0%';
+    loading.classList.add('active', 'phase-upload');
+    loading.classList.remove('phase-analyze');
+}
+
+function updateProgress(percent) {
+    const clamped = Math.min(100, Math.max(0, Math.round(percent)));
+    progressBarFill.style.width = clamped + '%';
+    progressPercent.textContent = clamped + '%';
+}
+
+function showAnalyzePhase() {
+    const fileCount = selectedFiles.length;
+    const label = fileCount === 1 ? 'Analyzing scan...' : `Analyzing ${fileCount} scans...`;
+    analysisText.textContent = label;
+    loading.classList.remove('phase-upload');
+    loading.classList.add('phase-analyze');
+}
+
+function hideLoading() {
+    loading.classList.remove('active', 'phase-upload', 'phase-analyze');
+}
+
+// Promise wrapper around XMLHttpRequest with upload progress
+function xhrUpload(url, formData, onProgress) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const percent = (e.loaded / e.total) * 100;
+                onProgress(percent);
+            }
+        });
+
+        xhr.addEventListener('load', () => {
+            let data;
+            try {
+                data = JSON.parse(xhr.responseText);
+            } catch {
+                reject(new Error('Invalid response from server'));
+                return;
+            }
+            if (xhr.status >= 200 && xhr.status < 300) {
+                resolve(data);
+            } else {
+                reject(new Error(data.detail || `Request failed (${xhr.status})`));
+            }
+        });
+
+        xhr.addEventListener('error', () => {
+            reject(new Error('Network error — please check your connection.'));
+        });
+
+        xhr.send(formData);
+    });
+}
+
 // Upload files
 async function uploadFiles() {
     if (selectedFiles.length === 0) return;
 
     console.log('Uploading files:', selectedFiles.length, selectedFiles.map(f => f.name));
 
-    // Show loading state
+    // Hide upload UI, show progress bar
     uploadArea.classList.add('hidden');
     filePreview.classList.remove('active');
-    loading.classList.add('active');
+    showUploadPhase(selectedFiles.length);
 
-    // Prepare form data
+    // Prepare form data & pick endpoint
     const formData = new FormData();
+    let endpoint;
 
     if (selectedFiles.length === 1) {
-        // Single file - use original endpoint
         formData.append('file', selectedFiles[0]);
+        endpoint = `${API_URL}/predict`;
+    } else {
+        selectedFiles.forEach(file => formData.append('files', file));
+        endpoint = `${API_URL}/predict/batch`;
+    }
 
-        try {
-            const response = await fetch(`${API_URL}/predict`, {
-                method: 'POST',
-                body: formData
-            });
+    try {
+        const data = await xhrUpload(endpoint, formData, updateProgress);
 
-            if (!response.ok) {
-                const msg = await extractErrorMessage(response, 'Prediction failed');
-                throw new Error(msg);
-            }
+        // Switch to analysis phase with a brief delay so user sees it
+        showAnalyzePhase();
+        await new Promise(r => setTimeout(r, 400));
 
-            const data = await response.json();
-
-            if (data.success) {
+        if (data.success) {
+            if (selectedFiles.length === 1) {
                 displaySingleResult(data);
             } else {
-                throw new Error('Prediction failed');
-            }
-
-        } catch (error) {
-            console.error('Error:', error);
-            showToast(error.message || 'An error occurred during prediction. Please try again.');
-            resetApp();
-        }
-    } else {
-        // Multiple files - use batch endpoint
-        selectedFiles.forEach(file => {
-            formData.append('files', file);
-        });
-
-        try {
-            const response = await fetch(`${API_URL}/predict/batch`, {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                const msg = await extractErrorMessage(response, 'Batch prediction failed');
-                throw new Error(msg);
-            }
-
-            const data = await response.json();
-
-            if (data.success) {
                 displayBatchResults(data);
-            } else {
-                throw new Error('Batch prediction failed');
             }
-
-        } catch (error) {
-            console.error('Error:', error);
-            showToast(error.message || 'An error occurred during batch prediction. Please try again.');
-            resetApp();
+        } else {
+            throw new Error('Prediction failed');
         }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast(error.message || 'An error occurred during prediction. Please try again.');
+        resetApp();
     }
 }
 
@@ -305,7 +349,7 @@ function displaySingleResult(data) {
     createProbabilityBars(prediction.probabilities);
 
     // Hide loading, show results
-    loading.classList.remove('active');
+    hideLoading();
     uploadSection.classList.add('hidden');
     resultsSection.classList.add('active');
 
@@ -353,7 +397,7 @@ function displayBatchResults(data) {
     displayIndividualScans(individual_predictions);
 
     // Hide loading, show results
-    loading.classList.remove('active');
+    hideLoading();
     uploadSection.classList.add('hidden');
     resultsSection.classList.add('active');
 
@@ -490,7 +534,7 @@ function resetApp() {
 
     // Reset visibility
     resultsSection.classList.remove('active');
-    loading.classList.remove('active');
+    hideLoading();
     uploadSection.classList.remove('hidden');
     uploadArea.classList.remove('hidden');
     filePreview.classList.remove('active');

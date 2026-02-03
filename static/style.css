@@ -156,10 +156,60 @@ main {
     display: block;
 }
 
-.loading p {
+/* Phase toggle */
+.upload-progress,
+.analysis-spinner {
+    display: none;
+}
+
+.loading.phase-upload .upload-progress {
+    display: block;
+    animation: fadeUp 0.4s var(--ease-out-expo) both;
+}
+
+.loading.phase-upload .analysis-spinner {
+    display: none;
+}
+
+.loading.phase-analyze .analysis-spinner {
+    display: block;
+    animation: fadeUp 0.4s var(--ease-out-expo) both;
+}
+
+.loading.phase-analyze .upload-progress {
+    display: none;
+}
+
+/* Loading text */
+.loading-text {
     color: var(--text-secondary);
     font-size: 0.95rem;
-    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+/* Progress bar */
+.progress-bar-track {
+    max-width: 320px;
+    height: 8px;
+    background: var(--stone-100);
+    border-radius: 4px;
+    margin: 0.75rem auto 0;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--terracotta);
+    border-radius: 4px;
+    transition: width 0.15s var(--ease-out-expo);
+}
+
+.progress-percent {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--terracotta);
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
 }
 
 .spinner {

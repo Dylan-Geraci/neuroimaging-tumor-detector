@@ -50,8 +50,19 @@
                 </div>
 
                 <div class="loading" id="loading">
-                    <div class="spinner"><span></span><span></span><span></span></div>
-                    <p>Analyzing...</p>
+                    <!-- Phase 1: Upload progress -->
+                    <div class="upload-progress" id="uploadProgress">
+                        <p class="loading-text" id="uploadText">Uploading scan...</p>
+                        <div class="progress-bar-track">
+                            <div class="progress-bar-fill" id="progressBarFill"></div>
+                        </div>
+                        <p class="progress-percent" id="progressPercent">0%</p>
+                    </div>
+                    <!-- Phase 2: Analysis spinner -->
+                    <div class="analysis-spinner" id="analysisSpinner">
+                        <div class="spinner"><span></span><span></span><span></span></div>
+                        <p class="loading-text" id="analysisText">Analyzing scan...</p>
+                    </div>
                 </div>
             </section>
 
