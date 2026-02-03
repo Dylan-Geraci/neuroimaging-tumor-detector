@@ -42,6 +42,11 @@ const analysisText = document.getElementById('analysisText');
 // API endpoint
 const API_URL = window.location.origin;
 
+// Export elements
+const exportSection = document.getElementById('exportSection');
+const exportCSVBtn = document.getElementById('exportCSV');
+const exportPDFBtn = document.getElementById('exportPDF');
+
 // Toast & banner elements
 const toastContainer = document.getElementById('toastContainer');
 const healthBanner = document.getElementById('healthBanner');
@@ -50,7 +55,8 @@ const healthBannerMessage = document.getElementById('healthBannerMessage');
 // Show an inline toast notification
 function showToast(message, type = 'error', duration = 5000) {
     const toast = document.createElement('div');
-    toast.className = `toast${type === 'warning' ? ' toast-warning' : ''}`;
+    const typeClass = type === 'warning' ? ' toast-warning' : type === 'success' ? ' toast-success' : '';
+    toast.className = `toast${typeClass}`;
     toast.innerHTML = `
         <span class="toast-message">${message}</span>
         <button class="toast-close">&times;</button>
@@ -93,6 +99,9 @@ async function extractErrorMessage(response, fallback) {
 // Store selected files
 let selectedFiles = [];
 
+// Store current results for export
+let currentResults = null;
+
 // Event Listeners
 uploadArea.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', handleFileSelect);
@@ -101,6 +110,8 @@ clearBtn.addEventListener('click', clearSelection);
 uploadBtn.addEventListener('click', uploadFiles);
 expandBtn.addEventListener('click', toggleIndividualScans);
 addMoreBtn.addEventListener('click', () => fileInput.click());
+exportCSVBtn.addEventListener('click', exportToCSV);
+exportPDFBtn.addEventListener('click', exportToPDF);
 
 // Drag and drop
 uploadArea.addEventListener('dragover', (e) => {
@@ -330,6 +341,10 @@ async function uploadFiles() {
 function displaySingleResult(data) {
     const { prediction, images } = data;
 
+    // Store for export
+    currentResults = { type: 'single', data };
+    exportSection.classList.add('active');
+
     // Update prediction text - change header for single scan
     aggregatedPrediction.querySelector('h2').textContent = 'Diagnosis';
     predictionClass.textContent = formatClassName(prediction.class);
@@ -362,6 +377,10 @@ function displayBatchResults(data) {
     console.log('Batch results received:', data);
     const { aggregated_prediction, individual_predictions, processed_count } = data;
     console.log('Individual predictions count:', individual_predictions.length);
+
+    // Store for export
+    currentResults = { type: 'batch', data };
+    exportSection.classList.add('active');
 
     // Update aggregated prediction
     aggregatedPrediction.querySelector('h2').textContent = 'Aggregated Diagnosis';
@@ -520,6 +539,8 @@ function resetApp() {
     // Reset file input and selection
     fileInput.value = '';
     selectedFiles = [];
+    currentResults = null;
+    exportSection.classList.remove('active');
 
     // Clear images
     originalImage.src = '';
@@ -562,6 +583,343 @@ async function checkHealth() {
         console.error('API health check failed:', error);
         showHealthBanner('Could not connect to the prediction API. Please ensure the backend is running.');
     }
+}
+
+// --- Export Utilities ---
+
+function getTimestamp() {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+}
+
+function formatDate(date) {
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+    });
+}
+
+function downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function exportToCSV() {
+    if (!currentResults) return;
+
+    const classNames = ['glioma', 'meningioma', 'notumor', 'pituitary'];
+    const headerLabels = classNames.map(c => `Probability_${formatClassName(c)}`);
+    let rows = [];
+
+    if (currentResults.type === 'single') {
+        const { prediction } = currentResults.data;
+        rows.push(['Timestamp', 'Classification', 'Confidence', ...headerLabels].join(','));
+        const probValues = classNames.map(c => (prediction.probabilities[c] * 100).toFixed(2) + '%');
+        rows.push([
+            formatDate(new Date()),
+            formatClassName(prediction.class),
+            (prediction.confidence * 100).toFixed(2) + '%',
+            ...probValues
+        ].join(','));
+    } else {
+        const { aggregated_prediction, individual_predictions } = currentResults.data;
+        rows.push(['Filename', 'Classification', 'Confidence', ...headerLabels].join(','));
+
+        individual_predictions.forEach(pred => {
+            if (pred.error) {
+                rows.push([pred.filename, 'Error', pred.error, '', '', '', ''].join(','));
+                return;
+            }
+            const probValues = classNames.map(c => (pred.probabilities[c] * 100).toFixed(2) + '%');
+            rows.push([
+                pred.filename,
+                formatClassName(pred.class),
+                (pred.confidence * 100).toFixed(2) + '%',
+                ...probValues
+            ].join(','));
+        });
+
+        // Summary row
+        rows.push('');
+        rows.push(['Aggregated Result'].join(','));
+        const aggProbs = classNames.map(c => (aggregated_prediction.probabilities[c] * 100).toFixed(2) + '%');
+        rows.push([
+            'AGGREGATED',
+            formatClassName(aggregated_prediction.class),
+            (aggregated_prediction.confidence * 100).toFixed(2) + '%',
+            ...aggProbs
+        ].join(','));
+        rows.push(`Agreement Score,${(aggregated_prediction.agreement_score * 100).toFixed(0)}%`);
+    }
+
+    const csv = rows.join('\n');
+    downloadFile(csv, `brain-tumor-results-${getTimestamp()}.csv`, 'text/csv');
+    showToast('CSV exported successfully', 'success', 3000);
+}
+
+async function exportToPDF() {
+    if (!currentResults) return;
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentWidth = pageWidth - margin * 2;
+    let y = 0;
+
+    const TERRACOTTA = [196, 112, 75];
+    const TEXT_PRIMARY = [46, 42, 37];
+    const TEXT_SECONDARY = [120, 113, 108];
+    const STONE_100 = [240, 238, 235];
+
+    function addFooter(pageNum, totalPages) {
+        doc.setFontSize(7);
+        doc.setTextColor(...TEXT_SECONDARY);
+        doc.text('This tool is not intended for clinical diagnosis. ResNet18 model \u00B7 97.10% test accuracy.', margin, pageHeight - 10);
+        doc.text(`Page ${pageNum} of ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+    }
+
+    function checkPageBreak(needed) {
+        if (y + needed > pageHeight - 20) {
+            doc.addPage();
+            y = margin;
+        }
+    }
+
+    // --- Header bar ---
+    doc.setFillColor(...TERRACOTTA);
+    doc.rect(0, 0, pageWidth, 36, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Brain Tumor Classification Report', margin, 16);
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(formatDate(new Date()), margin, 24);
+
+    const isBatch = currentResults.type === 'batch';
+    const subtitle = isBatch ? `Batch Analysis \u2014 ${currentResults.data.processed_count} scans` : 'Single Scan Analysis';
+    doc.text(subtitle, margin, 30);
+
+    y = 46;
+
+    // --- Diagnosis Section ---
+    if (isBatch) {
+        const { aggregated_prediction } = currentResults.data;
+        doc.setFontSize(9);
+        doc.setTextColor(...TEXT_SECONDARY);
+        doc.setFont('helvetica', 'normal');
+        doc.text('AGGREGATED DIAGNOSIS', margin, y);
+        y += 8;
+
+        doc.setFontSize(22);
+        doc.setTextColor(...TEXT_PRIMARY);
+        doc.setFont('helvetica', 'bold');
+        doc.text(formatClassName(aggregated_prediction.class), margin, y);
+        y += 8;
+
+        doc.setFontSize(11);
+        doc.setTextColor(...TERRACOTTA);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`${(aggregated_prediction.confidence * 100).toFixed(2)}% Confidence`, margin, y);
+
+        doc.text(`${(aggregated_prediction.agreement_score * 100).toFixed(0)}% Agreement`, margin + 60, y);
+        y += 12;
+    } else {
+        const { prediction } = currentResults.data;
+        doc.setFontSize(9);
+        doc.setTextColor(...TEXT_SECONDARY);
+        doc.setFont('helvetica', 'normal');
+        doc.text('DIAGNOSIS', margin, y);
+        y += 8;
+
+        doc.setFontSize(22);
+        doc.setTextColor(...TEXT_PRIMARY);
+        doc.setFont('helvetica', 'bold');
+        doc.text(formatClassName(prediction.class), margin, y);
+        y += 8;
+
+        doc.setFontSize(11);
+        doc.setTextColor(...TERRACOTTA);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`${(prediction.confidence * 100).toFixed(2)}% Confidence`, margin, y);
+        y += 12;
+    }
+
+    // --- Probability Bars ---
+    const probabilities = isBatch
+        ? currentResults.data.aggregated_prediction.probabilities
+        : currentResults.data.prediction.probabilities;
+
+    const sorted = Object.entries(probabilities).sort((a, b) => b[1] - a[1]);
+
+    doc.setFontSize(9);
+    doc.setTextColor(...TEXT_SECONDARY);
+    doc.text('CLASS PROBABILITIES', margin, y);
+    y += 7;
+
+    sorted.forEach(([className, prob], index) => {
+        checkPageBreak(12);
+        const barHeight = 5;
+        const barMaxWidth = contentWidth - 50;
+
+        // Label
+        doc.setFontSize(9);
+        doc.setTextColor(...TEXT_PRIMARY);
+        doc.setFont('helvetica', 'normal');
+        doc.text(formatClassName(className), margin, y);
+
+        // Value
+        doc.setTextColor(...TEXT_SECONDARY);
+        doc.text(`${(prob * 100).toFixed(2)}%`, pageWidth - margin, y, { align: 'right' });
+        y += 2;
+
+        // Background bar
+        doc.setFillColor(...STONE_100);
+        doc.roundedRect(margin, y, barMaxWidth, barHeight, 1, 1, 'F');
+
+        // Filled bar
+        const fillColor = index === 0 ? TERRACOTTA : [200, 195, 188];
+        doc.setFillColor(...fillColor);
+        const fillWidth = Math.max(1, barMaxWidth * prob);
+        doc.roundedRect(margin, y, fillWidth, barHeight, 1, 1, 'F');
+
+        y += barHeight + 5;
+    });
+
+    y += 5;
+
+    // --- Images / Table ---
+    if (isBatch) {
+        // Auto-table of individual results
+        checkPageBreak(30);
+        doc.setFontSize(9);
+        doc.setTextColor(...TEXT_SECONDARY);
+        doc.text('INDIVIDUAL SCAN RESULTS', margin, y);
+        y += 4;
+
+        const tableData = currentResults.data.individual_predictions.map(pred => {
+            if (pred.error) return [pred.filename, 'Error', pred.error];
+            return [
+                pred.filename,
+                formatClassName(pred.class),
+                (pred.confidence * 100).toFixed(2) + '%'
+            ];
+        });
+
+        doc.autoTable({
+            startY: y,
+            margin: { left: margin, right: margin },
+            head: [['Filename', 'Classification', 'Confidence']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: {
+                fillColor: TERRACOTTA,
+                textColor: [255, 255, 255],
+                fontSize: 8,
+                fontStyle: 'bold'
+            },
+            bodyStyles: {
+                fontSize: 8,
+                textColor: TEXT_PRIMARY
+            },
+            alternateRowStyles: {
+                fillColor: [250, 249, 247]
+            },
+            styles: {
+                cellPadding: 3,
+                lineColor: [226, 223, 218],
+                lineWidth: 0.25
+            }
+        });
+
+        y = doc.lastAutoTable.finalY + 10;
+
+        // Sample overlay images (up to 6)
+        const validPreds = currentResults.data.individual_predictions.filter(p => !p.error && p.images && p.images.overlay);
+        const sampled = validPreds.slice(0, 6);
+
+        if (sampled.length > 0) {
+            checkPageBreak(50);
+            doc.setFontSize(9);
+            doc.setTextColor(...TEXT_SECONDARY);
+            doc.text('SAMPLE OVERLAY IMAGES', margin, y);
+            y += 5;
+
+            const cols = 3;
+            const imgSize = (contentWidth - (cols - 1) * 5) / cols;
+
+            for (let i = 0; i < sampled.length; i++) {
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+
+                if (col === 0 && row > 0) {
+                    y += imgSize + 12;
+                    checkPageBreak(imgSize + 12);
+                }
+
+                const x = margin + col * (imgSize + 5);
+                const imgY = y;
+
+                try {
+                    doc.addImage(sampled[i].images.overlay, 'JPEG', x, imgY, imgSize, imgSize);
+                    doc.setFontSize(6);
+                    doc.setTextColor(...TEXT_SECONDARY);
+                    doc.text(sampled[i].filename, x, imgY + imgSize + 3, { maxWidth: imgSize });
+                } catch (e) {
+                    // Skip image if it fails to load
+                }
+            }
+            y += imgSize + 12;
+        }
+    } else {
+        // Single scan — Grad-CAM images
+        const { images } = currentResults.data;
+        checkPageBreak(70);
+
+        doc.setFontSize(9);
+        doc.setTextColor(...TEXT_SECONDARY);
+        doc.text('GRAD-CAM VISUALIZATIONS', margin, y);
+        y += 5;
+
+        const imgSize = (contentWidth - 10) / 3;
+        const labels = ['Original MRI', 'Attention Heatmap', 'Overlay'];
+        const srcs = [images.original, images.heatmap, images.overlay];
+
+        for (let i = 0; i < srcs.length; i++) {
+            const x = margin + i * (imgSize + 5);
+            try {
+                doc.addImage(srcs[i], 'JPEG', x, y, imgSize, imgSize);
+                doc.setFontSize(7);
+                doc.setTextColor(...TEXT_SECONDARY);
+                doc.text(labels[i], x + imgSize / 2, y + imgSize + 4, { align: 'center' });
+            } catch (e) {
+                // Skip image if it fails
+            }
+        }
+        y += imgSize + 10;
+    }
+
+    // --- Add footers ---
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        addFooter(i, totalPages);
+    }
+
+    doc.save(`brain-tumor-report-${getTimestamp()}.pdf`);
+    showToast('PDF report exported successfully', 'success', 3000);
 }
 
 // Initialize

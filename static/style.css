@@ -404,6 +404,41 @@ main {
     color: var(--text-secondary);
 }
 
+/* Export Section */
+.export-section {
+    display: none;
+    gap: 0.75rem;
+    margin-bottom: 2.5rem;
+}
+
+.export-section.active {
+    display: flex;
+}
+
+.export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: var(--white);
+    color: var(--terracotta);
+    border: 1px solid var(--terracotta);
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.export-btn:hover {
+    background: var(--terracotta);
+    color: var(--white);
+}
+
+.export-btn svg {
+    flex-shrink: 0;
+}
+
 /* Visualizations */
 .visualizations {
     display: grid;
@@ -856,6 +891,15 @@ footer p {
         grid-template-columns: 1fr;
     }
 
+    .export-section.active {
+        flex-direction: column;
+    }
+
+    .export-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
     .upload-area {
         padding: 2.5rem 1.5rem;
     }
@@ -897,6 +941,10 @@ footer p {
 
 .toast-warning {
     border-left-color: var(--amber);
+}
+
+.toast-success {
+    border-left-color: var(--sage);
 }
 
 .toast-removing {

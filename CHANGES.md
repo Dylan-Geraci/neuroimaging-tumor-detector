@@ -26,10 +26,10 @@
 ## Next Steps: Frontend Improvements
 
 ### High Priority
-- Overhauling the look
-- Enhanced error handling with detailed inline messages
+- ~~Overhauling the look~~ ✓
+- ~~Enhanced error handling with detailed inline messages~~ ✓
 - ~~Upload progress indicator (% complete if needed)~~ ✓
-- Results export (PDF/CSV)
+- ~~Results export (PDF/CSV)~~ ✓
 
 ### Medium Priority
 - Comparison view for batch predictions
