@@ -10,7 +10,14 @@
     <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
+    <div id="toastContainer" class="toast-container"></div>
     <div class="container">
+        <!-- Health Banner -->
+        <div id="healthBanner" class="health-banner hidden">
+            <span class="health-banner-message" id="healthBannerMessage"></span>
+            <button class="health-banner-close" onclick="dismissHealthBanner()">&times;</button>
+        </div>
+
         <!-- Header -->
         <header>
             <h1>Brain Tumor Classifier</h1>

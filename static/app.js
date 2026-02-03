@@ -34,6 +34,54 @@ const aggregatedPrediction = document.getElementById('aggregatedPrediction');
 // API endpoint
 const API_URL = window.location.origin;
 
+// Toast & banner elements
+const toastContainer = document.getElementById('toastContainer');
+const healthBanner = document.getElementById('healthBanner');
+const healthBannerMessage = document.getElementById('healthBannerMessage');
+
+// Show an inline toast notification
+function showToast(message, type = 'error', duration = 5000) {
+    const toast = document.createElement('div');
+    toast.className = `toast${type === 'warning' ? ' toast-warning' : ''}`;
+    toast.innerHTML = `
+        <span class="toast-message">${message}</span>
+        <button class="toast-close">&times;</button>
+    `;
+    toast.querySelector('.toast-close').addEventListener('click', () => removeToast(toast));
+    toastContainer.appendChild(toast);
+    if (duration > 0) {
+        setTimeout(() => removeToast(toast), duration);
+    }
+}
+
+// Animate-out then remove a toast element
+function removeToast(toast) {
+    if (!toast.parentNode) return;
+    toast.classList.add('toast-removing');
+    toast.addEventListener('animationend', () => toast.remove(), { once: true });
+}
+
+// Show the persistent health banner
+function showHealthBanner(message) {
+    healthBannerMessage.textContent = message;
+    healthBanner.classList.remove('hidden');
+}
+
+// Dismiss the health banner
+function dismissHealthBanner() {
+    healthBanner.classList.add('hidden');
+}
+
+// Extract a human-readable error message from a failed API response
+async function extractErrorMessage(response, fallback) {
+    try {
+        const body = await response.json();
+        return body.detail || fallback;
+    } catch {
+        return fallback;
+    }
+}
+
 // Store selected files
 let selectedFiles = [];
 
@@ -184,7 +232,8 @@ async function uploadFiles() {
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const msg = await extractErrorMessage(response, 'Prediction failed');
+                throw new Error(msg);
             }
 
             const data = await response.json();
@@ -197,7 +246,7 @@ async function uploadFiles() {
 
         } catch (error) {
             console.error('Error:', error);
-            alert('An error occurred during prediction. Please try again.');
+            showToast(error.message || 'An error occurred during prediction. Please try again.');
             resetApp();
         }
     } else {
@@ -213,7 +262,8 @@ async function uploadFiles() {
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const msg = await extractErrorMessage(response, 'Batch prediction failed');
+                throw new Error(msg);
             }
 
             const data = await response.json();
@@ -226,7 +276,7 @@ async function uploadFiles() {
 
         } catch (error) {
             console.error('Error:', error);
-            alert('An error occurred during batch prediction. Please try again.');
+            showToast(error.message || 'An error occurred during batch prediction. Please try again.');
             resetApp();
         }
     }
@@ -466,7 +516,7 @@ async function checkHealth() {
         console.log('API Health:', data);
     } catch (error) {
         console.error('API health check failed:', error);
-        alert('Warning: Could not connect to the prediction API. Please ensure the backend is running.');
+        showHealthBanner('Could not connect to the prediction API. Please ensure the backend is running.');
     }
 }
 
