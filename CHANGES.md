@@ -2,6 +2,13 @@
 
 ## Recent Updates
 
+### Upload Progress Indicator (February 2026)
+- Two-phase loading UI: real progress bar during upload, breathing-dot spinner during analysis
+- Replaced `fetch()` with `XMLHttpRequest` for real-time upload progress tracking
+- Progress bar shows percentage (0–100%) from actual bytes transferred
+- Dynamic text adapts to file count ("Uploading 5 scans..." / "Analyzing 5 scans...")
+- 400ms analysis phase provides visual continuity for fast uploads
+
 ### Batch Processing Support (January 2026)
 - Added multi-file upload with drag-and-drop
 - Implemented `/predict/batch` API endpoint
@@ -21,7 +28,7 @@
 ### High Priority
 - Overhauling the look
 - Enhanced error handling with detailed inline messages
-- Upload progress indicator (% complete if needed)
+- ~~Upload progress indicator (% complete if needed)~~ ✓
 - Results export (PDF/CSV)
 
 ### Medium Priority
