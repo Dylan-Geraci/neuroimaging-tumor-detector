@@ -1,3 +1,5 @@
+[![CI](https://github.com/Dylan-Geraci/neuroimaging-tumor-detector/actions/workflows/ci.yml/badge.svg)](https://github.com/Dylan-Geraci/neuroimaging-tumor-detector/actions/workflows/ci.yml)
+
 # Brain Tumor Classification System
 
 Deep learning system for classifying brain MRI scans into four categories (Glioma, Meningioma, Pituitary Tumor, No Tumor) using a fine-tuned ResNet18 model with 97.10% test accuracy. Includes Grad-CAM visual explanations and a web interface for real-time analysis.

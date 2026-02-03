@@ -27,8 +27,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
 
-from data import get_data_loaders, CLASSES
-from model import create_model
+from src.data import get_data_loaders, CLASSES
+from src.model import create_model
 
 
 def load_trained_model(

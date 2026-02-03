@@ -1,0 +1,49 @@
+# ---------- builder ----------
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+
+# Install build-time system deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+
+# Install CPU-only PyTorch first, then remaining deps
+RUN pip install --no-cache-dir \
+    torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -r requirements.txt
+
+# ---------- runtime ----------
+FROM python:3.12-slim AS runtime
+
+WORKDIR /app
+
+# OpenCV needs libgl
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1-mesa-glx libglib2.0-0 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application code
+COPY main.py .
+COPY src/ src/
+COPY static/ static/
+
+# Model is mounted as a volume — not baked into the image
+VOLUME ["/app/models"]
+
+ENV APP_MODEL_PATH=/app/models/best_model.pth
+ENV APP_HOST=0.0.0.0
+ENV APP_PORT=8000
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
