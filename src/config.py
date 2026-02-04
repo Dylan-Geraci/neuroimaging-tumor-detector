@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # Security settings
     environment: str = "development"
     secret_key: str = secrets.token_urlsafe(32)
-    api_keys: List[str] = []  # Empty = no auth in dev
+    api_keys: Union[str, List[str]] = []  # Empty = no auth in dev
     rate_limit_enabled: bool = False
     rate_limit_per_minute: int = 10
     max_file_size_mb: int = 50
@@ -37,9 +37,7 @@ class Settings(BaseSettings):
         "env_prefix": "APP_",
         "env_file": ".env",
         "env_file_encoding": "utf-8",
-        "json_schema_extra": {
-            "env_parse_none_str": "null",
-        },
+        "extra": "ignore",  # Ignore extra environment variables
     }
 
     @field_validator("cors_origins", mode="before")
@@ -59,10 +57,16 @@ class Settings(BaseSettings):
     @field_validator("api_keys", mode="before")
     @classmethod
     def parse_api_keys(cls, v):
-        """Parse comma-separated API keys."""
+        """Parse comma-separated API keys from string or list."""
+        if v is None or v == "":
+            return []
+        if isinstance(v, list):
+            return v
         if isinstance(v, str):
-            return [key.strip() for key in v.split(",") if key.strip()]
-        return v
+            # Handle comma-separated values
+            keys = [key.strip() for key in v.split(",") if key.strip()]
+            return keys if keys else []
+        return []
 
     @property
     def is_production(self) -> bool:
