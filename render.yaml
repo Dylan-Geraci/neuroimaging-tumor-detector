@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: neuroimaging-tumor-detector
+    env: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: APP_MODEL_PATH
+        value: /app/models/best_model.pth
+      - key: APP_HOST
+        value: 0.0.0.0
+      - key: APP_CORS_ORIGINS
+        sync: false  # Set this in Render dashboard
+      - key: API_KEY
+        generateValue: true  # Auto-generate API key
+      - key: LOG_LEVEL
+        value: INFO
+      - key: RATE_LIMIT_PER_MINUTE
+        value: 60

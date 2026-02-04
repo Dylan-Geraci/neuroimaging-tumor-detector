@@ -10,12 +10,13 @@ Provides REST API endpoints for:
 import io
 import uuid
 import base64
+import time
 from contextlib import asynccontextmanager
 
 import torch
 import numpy as np
 from PIL import Image
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Query
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Query, Request
 from typing import List, Optional
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -31,12 +32,21 @@ from src.gradcam import create_gradcam
 from src.config import settings
 from src.database import engine, get_db, Base
 from src.models_db import Prediction
+from src.logger import setup_logger, log_request, log_error
+from src.rate_limit import RateLimiter
+from src.validation import validate_upload, validate_batch_upload
+
+# Initialize logger
+logger = setup_logger(level=settings.log_level)
+
+# Initialize rate limiter
+rate_limiter = RateLimiter(requests_per_minute=settings.rate_limit_per_minute)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Load model and Grad-CAM on startup, clean up on shutdown."""
-    print("Loading model...")
+    logger.info("Starting Brain Tumor Classification API...")
 
     # Determine device
     if torch.cuda.is_available():
@@ -46,7 +56,7 @@ async def lifespan(app: FastAPI):
     else:
         device = "cpu"
 
-    print(f"Using device: {device}")
+    logger.info(f"Using device: {device}")
 
     # Load model
     model = create_model(num_classes=len(CLASSES), pretrained=False, device=device)
@@ -54,16 +64,16 @@ async def lifespan(app: FastAPI):
     model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
 
-    print(f"Model loaded from {settings.model_path}")
-    print(f"Best validation accuracy: {checkpoint.get('best_val_acc', 'N/A')}")
+    logger.info(f"Model loaded from {settings.model_path}")
+    logger.info(f"Best validation accuracy: {checkpoint.get('best_val_acc', 'N/A')}")
 
     # Initialize Grad-CAM
     gradcam = create_gradcam(model, device)
-    print("Grad-CAM initialized")
+    logger.info("Grad-CAM initialized")
 
     # Get transforms
     transform = get_inference_transforms()
-    print("Ready to accept requests!")
+    logger.info("Ready to accept requests!")
 
     # Create database tables
     Base.metadata.create_all(bind=engine)
@@ -77,7 +87,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # Cleanup
-    print("Shutting down...")
+    logger.info("Shutting down...")
 
 
 # Initialize FastAPI app
@@ -96,6 +106,39 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Request logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log all HTTP requests with timing information."""
+    start_time = time.time()
+
+    try:
+        response = await call_next(request)
+        duration_ms = (time.time() - start_time) * 1000
+
+        log_request(
+            method=request.method,
+            path=request.url.path,
+            status_code=response.status_code,
+            duration_ms=duration_ms,
+        )
+
+        return response
+
+    except Exception as e:
+        duration_ms = (time.time() - start_time) * 1000
+        log_error(e, context=f"{request.method} {request.url.path}")
+
+        log_request(
+            method=request.method,
+            path=request.url.path,
+            status_code=500,
+            duration_ms=duration_ms,
+        )
+
+        raise
 
 
 def _process_single_image(
@@ -237,16 +280,25 @@ async def health_check():
 
 
 @app.post("/predict")
-async def predict(file: UploadFile = File(...), db: Session = Depends(get_db)) -> JSONResponse:
+async def predict(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
     """
     Predict brain tumor type from uploaded MRI image.
 
     Args:
+        request: FastAPI request object (for rate limiting)
         file: Uploaded image file
+        db: Database session
 
     Returns:
         JSON with prediction, confidence, probabilities, and visualizations
     """
+    # Rate limiting
+    await rate_limiter.check_rate_limit(request)
+
     model = getattr(app.state, "model", None)
     gradcam = getattr(app.state, "gradcam", None)
     device = getattr(app.state, "device", None)
@@ -255,11 +307,10 @@ async def predict(file: UploadFile = File(...), db: Session = Depends(get_db)) -
     if model is None or gradcam is None:
         raise HTTPException(status_code=503, detail="Model not loaded yet")
 
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="File must be an image")
-
     try:
-        contents = await file.read()
+        # Validate and read file
+        contents = await validate_upload(file)
+
         result = _process_single_image(contents, model, gradcam, device, transform)
 
         # Save to database
@@ -270,6 +321,8 @@ async def predict(file: UploadFile = File(...), db: Session = Depends(get_db)) -
             probabilities=result["probabilities"],
         ))
         db.commit()
+
+        logger.info(f"Prediction: {result['class']} ({result['confidence']:.2%}) for {file.filename}")
 
         response = {
             "success": True,
@@ -284,21 +337,33 @@ async def predict(file: UploadFile = File(...), db: Session = Depends(get_db)) -
 
         return JSONResponse(content=response)
 
+    except HTTPException:
+        raise
     except Exception as e:
+        log_error(e, context="Prediction failed")
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
 
 @app.post("/predict/batch")
-async def predict_batch(files: List[UploadFile] = File(...), db: Session = Depends(get_db)) -> JSONResponse:
+async def predict_batch(
+    request: Request,
+    files: List[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
     """
     Predict brain tumor type from multiple uploaded MRI images and aggregate results.
 
     Args:
+        request: FastAPI request object (for rate limiting)
         files: List of uploaded image files
+        db: Database session
 
     Returns:
         JSON with individual predictions and aggregated results
     """
+    # Rate limiting
+    await rate_limiter.check_rate_limit(request)
+
     model = getattr(app.state, "model", None)
     gradcam = getattr(app.state, "gradcam", None)
     device = getattr(app.state, "device", None)
@@ -307,70 +372,66 @@ async def predict_batch(files: List[UploadFile] = File(...), db: Session = Depen
     if model is None or gradcam is None:
         raise HTTPException(status_code=503, detail="Model not loaded yet")
 
-    if not files:
-        raise HTTPException(status_code=400, detail="No files provided")
+    try:
+        # Validate batch
+        validated_files = await validate_batch_upload(files)
 
-    print(f"Batch prediction: received {len(files)} files")
-    for f in files:
-        print(f"  - {f.filename} (type: {f.content_type})")
+        logger.info(f"Batch prediction: processing {len(validated_files)} files")
 
-    individual_predictions = []
+        individual_predictions = []
 
-    for file in files:
-        # Validate file type - be more permissive
-        content_type = file.content_type or ""
-        filename = file.filename or ""
-        is_image = content_type.startswith("image/") or filename.lower().endswith(
-            (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp")
+        for file, contents in validated_files:
+            try:
+                logger.debug(f"Processing file: {file.filename}")
+                result = _process_single_image(contents, model, gradcam, device, transform)
+                result["filename"] = file.filename
+                individual_predictions.append(result)
+
+            except Exception as e:
+                log_error(e, context=f"Error processing {file.filename}")
+                individual_predictions.append({"filename": file.filename, "error": str(e)})
+
+        # Filter out failed predictions for aggregation
+        successful_predictions = [p for p in individual_predictions if "error" not in p]
+
+        if not successful_predictions:
+            raise HTTPException(status_code=400, detail="No valid images could be processed")
+
+        # Save successful predictions to database
+        batch_id = str(uuid.uuid4())
+        for pred in successful_predictions:
+            db.add(Prediction(
+                filename=pred.get("filename", "unknown"),
+                predicted_class=pred["class"],
+                confidence=pred["confidence"],
+                probabilities=pred["probabilities"],
+                batch_id=batch_id,
+            ))
+        db.commit()
+
+        # Aggregate predictions
+        aggregated = aggregate_predictions(successful_predictions)
+
+        logger.info(
+            f"Batch {batch_id}: {len(successful_predictions)}/{len(files)} successful. "
+            f"Aggregated: {aggregated['class']} ({aggregated['confidence']:.2%})"
         )
-        if not is_image:
-            print(f"Skipping non-image file: {filename} (content_type: {content_type})")
-            continue
 
-        try:
-            print(f"Processing file: {filename}")
-            contents = await file.read()
-            result = _process_single_image(contents, model, gradcam, device, transform)
-            result["filename"] = file.filename
-            individual_predictions.append(result)
+        response = {
+            "success": True,
+            "batch_size": len(files),
+            "processed_count": len(successful_predictions),
+            "individual_predictions": individual_predictions,
+            "aggregated_prediction": aggregated,
+        }
 
-        except Exception as e:
-            print(f"Error processing {file.filename}: {str(e)}")
-            import traceback
+        return JSONResponse(content=response)
 
-            traceback.print_exc()
-            individual_predictions.append({"filename": file.filename, "error": str(e)})
-
-    # Filter out failed predictions for aggregation
-    successful_predictions = [p for p in individual_predictions if "error" not in p]
-
-    if not successful_predictions:
-        raise HTTPException(status_code=400, detail="No valid images could be processed")
-
-    # Save successful predictions to database
-    batch_id = str(uuid.uuid4())
-    for pred in successful_predictions:
-        db.add(Prediction(
-            filename=pred.get("filename", "unknown"),
-            predicted_class=pred["class"],
-            confidence=pred["confidence"],
-            probabilities=pred["probabilities"],
-            batch_id=batch_id,
-        ))
-    db.commit()
-
-    # Aggregate predictions
-    aggregated = aggregate_predictions(successful_predictions)
-
-    response = {
-        "success": True,
-        "batch_size": len(files),
-        "processed_count": len(successful_predictions),
-        "individual_predictions": individual_predictions,
-        "aggregated_prediction": aggregated,
-    }
-
-    return JSONResponse(content=response)
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_error(e, context="Batch prediction failed")
+        raise HTTPException(status_code=500, detail=f"Batch prediction failed: {str(e)}")
 
 
 @app.get("/predictions")

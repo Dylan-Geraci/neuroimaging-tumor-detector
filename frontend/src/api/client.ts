@@ -1,9 +1,21 @@
 import type { SinglePredictionResponse, BatchPredictionResponse, HealthResponse } from './types';
 
-const API_URL = '';
+// Use environment variable for API URL, fallback to empty string for dev (proxy)
+const API_URL = import.meta.env.VITE_API_URL || '';
+const API_KEY = import.meta.env.VITE_API_KEY || '';
+
+function getHeaders(): HeadersInit {
+  const headers: HeadersInit = {};
+  if (API_KEY) {
+    headers['X-API-Key'] = API_KEY;
+  }
+  return headers;
+}
 
 export async function checkHealth(): Promise<HealthResponse> {
-  const resp = await fetch(`${API_URL}/health`);
+  const resp = await fetch(`${API_URL}/health`, {
+    headers: getHeaders(),
+  });
   if (!resp.ok) throw new Error('Health check failed');
   return resp.json();
 }
@@ -16,6 +28,11 @@ export function xhrUpload<T>(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', url);
+
+    // Add API key header if configured
+    if (API_KEY) {
+      xhr.setRequestHeader('X-API-Key', API_KEY);
+    }
 
     xhr.upload.addEventListener('progress', (e) => {
       if (e.lengthComputable) {
