@@ -49,5 +49,4 @@ frontend/node_modules/
 *.db
 predictions.db
 
-QUICKSTART.md
 IMPLEMENTATION_SUMMARY.md
