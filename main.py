@@ -220,11 +220,6 @@ def image_to_base64(image: np.ndarray) -> str:
     return f"data:image/png;base64,{img_str}"
 
 
-@app.get("/")
-async def root():
-    """Root endpoint - redirect to docs."""
-    return {"message": "Brain Tumor Classification API", "docs": "/docs", "health": "/health"}
-
 
 @app.get("/health")
 async def health_check():

@@ -20,6 +20,56 @@ from src.model import create_model
 from src.data import CLASSES
 
 
+class TemperatureScaler:
+    """
+    Post-hoc temperature scaling for better calibrated probabilities.
+
+    After training, fit the temperature on the validation set, then use
+    scaled_probs = softmax(logits / T) for better confidence estimates.
+
+    Usage:
+        scaler = TemperatureScaler()
+        scaler.fit(model, val_loader, device)
+        calibrated_probs = scaler.scale(logits)
+    """
+
+    def __init__(self, temperature: float = 1.0):
+        self.temperature = temperature
+
+    def fit(self, model: nn.Module, val_loader, device: str, lr: float = 0.01, max_iter: int = 100):
+        """Learn optimal temperature on validation data using NLL loss."""
+        temp = nn.Parameter(torch.ones(1, device=device) * self.temperature)
+        optimizer = torch.optim.LBFGS([temp], lr=lr, max_iter=max_iter)
+        criterion = nn.CrossEntropyLoss()
+
+        all_logits = []
+        all_labels = []
+
+        model.eval()
+        with torch.no_grad():
+            for images, labels in val_loader:
+                logits = model(images.to(device))
+                all_logits.append(logits)
+                all_labels.append(labels.to(device))
+
+        all_logits = torch.cat(all_logits)
+        all_labels = torch.cat(all_labels)
+
+        def closure():
+            optimizer.zero_grad()
+            loss = criterion(all_logits / temp, all_labels)
+            loss.backward()
+            return loss
+
+        optimizer.step(closure)
+        self.temperature = temp.item()
+        return self.temperature
+
+    def scale(self, logits: torch.Tensor) -> torch.Tensor:
+        """Apply temperature scaling to logits and return probabilities."""
+        return torch.softmax(logits / self.temperature, dim=1)
+
+
 def get_inference_transforms() -> transforms.Compose:
     """
     Get transforms for inference (no augmentation).
