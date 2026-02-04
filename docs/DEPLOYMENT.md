@@ -27,10 +27,10 @@ This guide walks through deploying the Brain Tumor Classification API to Railway
 pip install huggingface-hub
 
 # Login
-huggingface-cli login
+hf login
 
 # Upload model (replace YOUR-USERNAME)
-huggingface-cli upload YOUR-USERNAME/brain-tumor-classifier models/best_model.pth
+hf upload YOUR-USERNAME/brain-tumor-classifier models/best_model.pth
 ```
 
 ### 1.3 Update Model Loader

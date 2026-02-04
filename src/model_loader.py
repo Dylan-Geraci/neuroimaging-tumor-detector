@@ -12,7 +12,7 @@ def load_model_checkpoint(device: str) -> dict:
     if settings.model_source == "huggingface":
         logger.info("Downloading from Hugging Face Hub...")
         model_path = hf_hub_download(
-            repo_id="YOUR-USERNAME/brain-tumor-classifier",  # TODO: Update this
+            repo_id="dylan-geraci/brain-tumor-classifier",
             filename="best_model.pth",
             cache_dir="./models_cache",
         )

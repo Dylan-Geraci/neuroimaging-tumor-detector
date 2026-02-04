@@ -8,7 +8,7 @@ from pathlib import Path
 def main():
     print("Downloading from Hugging Face...")
     model_path = hf_hub_download(
-        repo_id="YOUR-USERNAME/brain-tumor-classifier",  # TODO: Update this
+        repo_id="dylan-geraci/brain-tumor-classifier",
         filename="best_model.pth",
     )
 
