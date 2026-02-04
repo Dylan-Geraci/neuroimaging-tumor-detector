@@ -8,25 +8,29 @@ Provides REST API endpoints for:
 """
 
 import io
+import uuid
 import base64
 from contextlib import asynccontextmanager
 
 import torch
 import numpy as np
 from PIL import Image
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from typing import List
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Query
+from typing import List, Optional
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import cv2
 from pytorch_grad_cam.utils.image import show_cam_on_image
+from sqlalchemy.orm import Session
 
 from src.model import create_model
 from src.data import CLASSES
 from src.predict import get_inference_transforms
 from src.gradcam import create_gradcam
 from src.config import settings
+from src.database import engine, get_db, Base
+from src.models_db import Prediction
 
 
 @asynccontextmanager
@@ -60,6 +64,9 @@ async def lifespan(app: FastAPI):
     # Get transforms
     transform = get_inference_transforms()
     print("Ready to accept requests!")
+
+    # Create database tables
+    Base.metadata.create_all(bind=engine)
 
     # Store on app.state
     app.state.model = model
@@ -235,7 +242,7 @@ async def health_check():
 
 
 @app.post("/predict")
-async def predict(file: UploadFile = File(...)) -> JSONResponse:
+async def predict(file: UploadFile = File(...), db: Session = Depends(get_db)) -> JSONResponse:
     """
     Predict brain tumor type from uploaded MRI image.
 
@@ -260,6 +267,15 @@ async def predict(file: UploadFile = File(...)) -> JSONResponse:
         contents = await file.read()
         result = _process_single_image(contents, model, gradcam, device, transform)
 
+        # Save to database
+        db.add(Prediction(
+            filename=file.filename or "unknown",
+            predicted_class=result["class"],
+            confidence=result["confidence"],
+            probabilities=result["probabilities"],
+        ))
+        db.commit()
+
         response = {
             "success": True,
             "prediction": {
@@ -278,7 +294,7 @@ async def predict(file: UploadFile = File(...)) -> JSONResponse:
 
 
 @app.post("/predict/batch")
-async def predict_batch(files: List[UploadFile] = File(...)) -> JSONResponse:
+async def predict_batch(files: List[UploadFile] = File(...), db: Session = Depends(get_db)) -> JSONResponse:
     """
     Predict brain tumor type from multiple uploaded MRI images and aggregate results.
 
@@ -336,6 +352,18 @@ async def predict_batch(files: List[UploadFile] = File(...)) -> JSONResponse:
     if not successful_predictions:
         raise HTTPException(status_code=400, detail="No valid images could be processed")
 
+    # Save successful predictions to database
+    batch_id = str(uuid.uuid4())
+    for pred in successful_predictions:
+        db.add(Prediction(
+            filename=pred.get("filename", "unknown"),
+            predicted_class=pred["class"],
+            confidence=pred["confidence"],
+            probabilities=pred["probabilities"],
+            batch_id=batch_id,
+        ))
+    db.commit()
+
     # Aggregate predictions
     aggregated = aggregate_predictions(successful_predictions)
 
@@ -348,6 +376,68 @@ async def predict_batch(files: List[UploadFile] = File(...)) -> JSONResponse:
     }
 
     return JSONResponse(content=response)
+
+
+@app.get("/predictions")
+def list_predictions(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    """List prediction history (paginated, newest first)."""
+    rows = (
+        db.query(Prediction)
+        .order_by(Prediction.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    total = db.query(Prediction).count()
+    return {
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "items": [
+            {
+                "id": r.id,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "filename": r.filename,
+                "predicted_class": r.predicted_class,
+                "confidence": r.confidence,
+                "probabilities": r.probabilities,
+                "batch_id": r.batch_id,
+            }
+            for r in rows
+        ],
+    }
+
+
+@app.get("/predictions/{prediction_id}")
+def get_prediction(prediction_id: str, db: Session = Depends(get_db)):
+    """Get a single prediction by ID."""
+    row = db.query(Prediction).filter(Prediction.id == prediction_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Prediction not found")
+    return {
+        "id": row.id,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "filename": row.filename,
+        "predicted_class": row.predicted_class,
+        "confidence": row.confidence,
+        "probabilities": row.probabilities,
+        "batch_id": row.batch_id,
+    }
+
+
+@app.delete("/predictions/{prediction_id}")
+def delete_prediction(prediction_id: str, db: Session = Depends(get_db)):
+    """Delete a prediction by ID."""
+    row = db.query(Prediction).filter(Prediction.id == prediction_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Prediction not found")
+    db.delete(row)
+    db.commit()
+    return {"deleted": True}
 
 
 # Mount static files (frontend) — html=True enables SPA fallback

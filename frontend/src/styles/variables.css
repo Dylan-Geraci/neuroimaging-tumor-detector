@@ -1,0 +1,17 @@
+/* Design System — Warm Terracotta & Stone */
+:root {
+    --stone-50: #faf9f7;
+    --stone-100: #f0eeeb;
+    --stone-200: #e2dfda;
+    --stone-300: #c8c3bc;
+    --white: #ffffff;
+    --text-primary: #2e2a25;
+    --text-secondary: #78716c;
+    --terracotta: #c4704b;
+    --terracotta-dark: #a85a38;
+    --terracotta-light: #faf0eb;
+    --sage: #7c9a82;
+    --amber: #d4a054;
+    --rose-muted: #c27070;
+    --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+}
