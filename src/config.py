@@ -7,8 +7,9 @@ Reads from environment variables with sensible defaults.
 import os
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
-from typing import List
+from typing import List, Union
 import secrets
+import json
 
 
 class Settings(BaseSettings):
@@ -18,7 +19,7 @@ class Settings(BaseSettings):
     port: int = 8000
     num_classes: int = 4
     image_size: int = 224
-    cors_origins: list[str] = ["*"]
+    cors_origins: Union[str, list[str]] = ["*"]
     database_url: str = "sqlite:///./predictions.db"
     log_level: str = "INFO"
     model_source: str = "local"
@@ -36,17 +37,24 @@ class Settings(BaseSettings):
         "env_prefix": "APP_",
         "env_file": ".env",
         "env_file_encoding": "utf-8",
+        "json_schema_extra": {
+            "env_parse_none_str": "null",
+        },
     }
 
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, v):
-        """Parse comma-separated CORS origins."""
+        """Parse comma-separated CORS origins from string or list."""
         if v is None or v == "":
             return ["*"]
+        if isinstance(v, list):
+            return v
         if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v
+            # Handle comma-separated values
+            origins = [origin.strip() for origin in v.split(",") if origin.strip()]
+            return origins if origins else ["*"]
+        return ["*"]
 
     @field_validator("api_keys", mode="before")
     @classmethod
