@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 """
 Input validation utilities.
 
@@ -10,12 +11,23 @@ from fastapi import UploadFile, HTTPException, status
 
 # Allowed image MIME types
 ALLOWED_IMAGE_TYPES = {
+=======
+"""Input validation for file uploads."""
+
+from fastapi import HTTPException, UploadFile
+from typing import List
+from src.config import settings
+from src.logger import logger
+
+ALLOWED_CONTENT_TYPES = {
+>>>>>>> 40c1d5a3f6c3f560c834e5adff95c2c15a0df926
     "image/jpeg",
     "image/jpg",
     "image/png",
     "image/gif",
     "image/bmp",
     "image/webp",
+<<<<<<< HEAD
     "image/tiff",
 }
 
@@ -93,11 +105,40 @@ async def validate_file_size(file: UploadFile) -> bytes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Empty file uploaded",
+=======
+}
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
+
+
+async def validate_file_upload(file: UploadFile) -> bytes:
+    """Validate file size, type, and extension."""
+    contents = await file.read()
+    file_size_mb = len(contents) / (1024 * 1024)
+
+    if file_size_mb > settings.max_file_size_mb:
+        logger.warning(f"File too large: {file.filename} ({file_size_mb:.2f}MB)")
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large ({file_size_mb:.1f}MB). Max: {settings.max_file_size_mb}MB",
+        )
+
+    content_type = (file.content_type or "").lower()
+    filename = (file.filename or "").lower()
+
+    if not (
+        content_type in ALLOWED_CONTENT_TYPES
+        or any(filename.endswith(ext) for ext in ALLOWED_EXTENSIONS)
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}",
+>>>>>>> 40c1d5a3f6c3f560c834e5adff95c2c15a0df926
         )
 
     return contents
 
 
+<<<<<<< HEAD
 def validate_batch_size(files: List[UploadFile]) -> None:
     """
     Validate batch upload size.
@@ -171,3 +212,15 @@ async def validate_batch_upload(files: List[UploadFile]) -> List[Tuple[UploadFil
         )
 
     return validated
+=======
+async def validate_batch_upload(files: List[UploadFile]) -> None:
+    """Validate batch constraints."""
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided")
+
+    if len(files) > settings.max_batch_size:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Too many files. Max batch size: {settings.max_batch_size}",
+        )
+>>>>>>> 40c1d5a3f6c3f560c834e5adff95c2c15a0df926

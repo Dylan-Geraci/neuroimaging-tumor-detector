@@ -33,6 +33,15 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY main.py .
 COPY src/ src/
 COPY static/ static/
+COPY scripts/ scripts/
+
+# Download model from Hugging Face if configured
+ARG MODEL_SOURCE=local
+ENV APP_MODEL_SOURCE=${MODEL_SOURCE}
+
+RUN if [ "$MODEL_SOURCE" = "huggingface" ]; then \
+        python scripts/download_model.py; \
+    fi
 
 # Model is mounted as a volume — not baked into the image
 VOLUME ["/app/models"]

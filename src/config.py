@@ -6,9 +6,13 @@ Reads from environment variables with sensible defaults.
 
 import os
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
+from typing import List
+import secrets
 
 
 class Settings(BaseSettings):
+    # Existing fields
     model_path: str = "models/best_model.pth"
     host: str = "0.0.0.0"
     port: int = 8000
@@ -19,7 +23,46 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     rate_limit_per_minute: int = 60
 
-    model_config = {"env_prefix": "APP_"}
+    # Security settings
+    environment: str = "development"
+    secret_key: str = secrets.token_urlsafe(32)
+    api_keys: List[str] = []  # Empty = no auth in dev
+    rate_limit_enabled: bool = False
+    rate_limit_per_minute: int = 10
+    max_file_size_mb: int = 50
+    max_batch_size: int = 20
+    log_level: str = "INFO"
+    model_source: str = "local"
+
+    model_config = {
+        "env_prefix": "APP_",
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+    }
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse comma-separated CORS origins."""
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
+
+    @field_validator("api_keys", mode="before")
+    @classmethod
+    def parse_api_keys(cls, v):
+        """Parse comma-separated API keys."""
+        if isinstance(v, str):
+            return [key.strip() for key in v.split(",") if key.strip()]
+        return v
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment == "production"
+
+    @property
+    def auth_enabled(self) -> bool:
+        return len(self.api_keys) > 0
 
 
 settings = Settings()
