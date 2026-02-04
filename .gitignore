@@ -48,3 +48,5 @@ frontend/node_modules/
 # Database
 *.db
 predictions.db
+
+IMPLEMENTATION_SUMMARY.md

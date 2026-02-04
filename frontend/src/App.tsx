@@ -88,6 +88,16 @@ export default function App() {
 
         <Header />
 
+        {/* Medical Disclaimer */}
+        <div className="disclaimer-banner">
+          <div className="disclaimer-icon">⚠️</div>
+          <div className="disclaimer-content">
+            <strong>Educational Use Only:</strong> This system is for research and
+            educational purposes. Not intended for clinical diagnosis. Always consult
+            qualified medical professionals for health decisions.
+          </div>
+        </div>
+
         <main>
           {/* Hidden extra file input for "Add More" */}
           <input ref={fileInputRef} type="file" accept="image/*" multiple hidden onChange={handleHiddenInput} />

@@ -5,11 +5,13 @@ services:
       - "8000:8000"
     volumes:
       - ./models:/app/models:ro
+    env_file:
+      - .env
     environment:
       - APP_MODEL_PATH=/app/models/best_model.pth
       - APP_HOST=0.0.0.0
       - APP_PORT=8000
-      - APP_DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/predictions
+      - APP_DATABASE_URL=${APP_DATABASE_URL:-postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/predictions}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
@@ -21,10 +23,12 @@ services:
 
   db:
     image: postgres:16-alpine
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: predictions
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-predictions}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
