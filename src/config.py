@@ -12,7 +12,7 @@ import secrets
 
 
 class Settings(BaseSettings):
-    # Existing fields
+    # Application settings
     model_path: str = "models/best_model.pth"
     host: str = "0.0.0.0"
     port: int = 8000
@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["*"]
     database_url: str = "sqlite:///./predictions.db"
     log_level: str = "INFO"
-    rate_limit_per_minute: int = 60
+    model_source: str = "local"
 
     # Security settings
     environment: str = "development"
@@ -31,8 +31,6 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 10
     max_file_size_mb: int = 50
     max_batch_size: int = 20
-    log_level: str = "INFO"
-    model_source: str = "local"
 
     model_config = {
         "env_prefix": "APP_",
@@ -44,6 +42,8 @@ class Settings(BaseSettings):
     @classmethod
     def parse_cors_origins(cls, v):
         """Parse comma-separated CORS origins."""
+        if v is None or v == "":
+            return ["*"]
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
