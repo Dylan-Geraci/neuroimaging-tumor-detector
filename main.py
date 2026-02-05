@@ -10,6 +10,7 @@ Provides REST API endpoints for:
 import io
 import uuid
 import base64
+import gc
 from contextlib import asynccontextmanager
 
 import torch
@@ -161,7 +162,7 @@ def _process_single_image(
     heatmap_colored = cv2.applyColorMap(np.uint8(255 * grayscale_cam), cv2.COLORMAP_JET)
     heatmap_colored = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB)
 
-    return {
+    result = {
         "class": CLASSES[predicted_class],
         "class_index": predicted_class,
         "confidence": float(confidence),
@@ -172,6 +173,12 @@ def _process_single_image(
             "overlay": image_to_base64(overlay),
         },
     }
+
+    # Clean up tensors and arrays to free memory
+    del input_tensor, output, probabilities, grayscale_cam
+    del original_np, original_rgb, original_resized, overlay, heatmap_colored
+
+    return result
 
 
 def aggregate_predictions(predictions: list) -> dict:
@@ -353,6 +360,12 @@ async def predict_batch(
             result = _process_single_image(contents, model, gradcam, device, transform)
             result["filename"] = file.filename
             individual_predictions.append(result)
+
+            # Free memory after each image to avoid OOM on free tier
+            del contents, result
+            gc.collect()
+            if device == "cuda":
+                torch.cuda.empty_cache()
 
         except Exception as e:
             logger.error(f"Error processing {file.filename}", exc_info=True)
