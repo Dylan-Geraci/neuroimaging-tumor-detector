@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 import torch
 import numpy as np
 from PIL import Image
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Query, Request
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Query, Request, Response
 from typing import List, Optional
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -238,7 +238,7 @@ def image_to_base64(image: np.ndarray) -> str:
 
 @app.get("/health")
 @limiter.limit("60/minute")
-async def health_check(request: Request):
+async def health_check(request: Request, response: Response):
     """Health check endpoint."""
     model = getattr(app.state, "model", None)
     gradcam = getattr(app.state, "gradcam", None)
@@ -256,6 +256,7 @@ async def health_check(request: Request):
 @limiter.limit("10/minute")
 async def predict(
     request: Request,
+    response: Response,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     _: str = Depends(verify_api_key),
@@ -315,6 +316,7 @@ async def predict(
 @limiter.limit("5/minute")
 async def predict_batch(
     request: Request,
+    response: Response,
     files: List[UploadFile] = File(...),
     db: Session = Depends(get_db),
     _: str = Depends(verify_api_key),
