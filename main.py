@@ -120,6 +120,7 @@ def _process_single_image(
     gradcam,
     device: str,
     transform,
+    include_gradcam: bool = True,
 ) -> dict:
     """
     Shared prediction pipeline for a single image.
@@ -150,33 +151,43 @@ def _process_single_image(
         predicted_class = output.argmax(dim=1).item()
         confidence = probabilities[predicted_class].item()
 
-    # Generate Grad-CAM
-    grayscale_cam = gradcam.generate_heatmap(input_tensor, predicted_class)
-
-    # Create overlay
-    original_normalized = original_np / 255.0
-    original_rgb = np.stack([original_normalized] * 3, axis=-1)
-    overlay = show_cam_on_image(original_rgb, grayscale_cam, use_rgb=True)
-
-    # Create colored heatmap
-    heatmap_colored = cv2.applyColorMap(np.uint8(255 * grayscale_cam), cv2.COLORMAP_JET)
-    heatmap_colored = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB)
-
     result = {
         "class": CLASSES[predicted_class],
         "class_index": predicted_class,
         "confidence": float(confidence),
         "probabilities": {CLASSES[i]: float(probabilities[i]) for i in range(len(CLASSES))},
-        "images": {
+    }
+
+    # Only generate Grad-CAM if requested (saves ~50MB memory per image)
+    if include_gradcam:
+        # Generate Grad-CAM
+        grayscale_cam = gradcam.generate_heatmap(input_tensor, predicted_class)
+
+        # Create overlay
+        original_normalized = original_np / 255.0
+        original_rgb = np.stack([original_normalized] * 3, axis=-1)
+        overlay = show_cam_on_image(original_rgb, grayscale_cam, use_rgb=True)
+
+        # Create colored heatmap
+        heatmap_colored = cv2.applyColorMap(np.uint8(255 * grayscale_cam), cv2.COLORMAP_JET)
+        heatmap_colored = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB)
+
+        result["images"] = {
             "original": image_to_base64(original_np),
             "heatmap": image_to_base64(heatmap_colored),
             "overlay": image_to_base64(overlay),
-        },
-    }
+        }
+
+        # Clean up Grad-CAM tensors
+        del grayscale_cam, original_rgb, original_normalized, overlay, heatmap_colored
+    else:
+        # Just include original image
+        result["images"] = {
+            "original": image_to_base64(original_np),
+        }
 
     # Clean up tensors and arrays to free memory
-    del input_tensor, output, probabilities, grayscale_cam
-    del original_np, original_rgb, original_resized, overlay, heatmap_colored
+    del input_tensor, output, probabilities, original_np, original_resized
 
     return result
 
@@ -357,7 +368,8 @@ async def predict_batch(
         try:
             logger.debug(f"Processing file: {file.filename}")
             contents = await validate_file_upload(file)
-            result = _process_single_image(contents, model, gradcam, device, transform)
+            # Skip Grad-CAM for batch to save memory (~50MB per image)
+            result = _process_single_image(contents, model, gradcam, device, transform, include_gradcam=False)
             result["filename"] = file.filename
             individual_predictions.append(result)
 
