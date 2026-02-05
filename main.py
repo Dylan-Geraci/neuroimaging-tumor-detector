@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 import torch
 import numpy as np
 from PIL import Image
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Query
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Query, Request
 from typing import List, Optional
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
