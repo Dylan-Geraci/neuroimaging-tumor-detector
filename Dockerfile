@@ -35,16 +35,12 @@ COPY src/ src/
 COPY static/ static/
 COPY scripts/ scripts/
 
-# Download model from Hugging Face if configured
-ARG MODEL_SOURCE=local
-ENV APP_MODEL_SOURCE=${MODEL_SOURCE}
+# Download model from Hugging Face during build
+# This bakes the model into the image to avoid runtime memory issues
+RUN python scripts/download_model.py
 
-RUN if [ "$MODEL_SOURCE" = "huggingface" ]; then \
-        python scripts/download_model.py; \
-    fi
-
-# Model is mounted as a volume — not baked into the image
-VOLUME ["/app/models"]
+# Use local model at runtime (already downloaded above)
+ENV APP_MODEL_SOURCE=local
 
 ENV APP_MODEL_PATH=/app/models/best_model.pth
 ENV APP_HOST=0.0.0.0
