@@ -1,6 +1,6 @@
 # Deployment Guide - Railway.app
 
-> **Note:** This guide documents the full deployment process for reference. The live demo currently runs frontend-only on Vercel due to hosting costs. Backend deployment was tested and validated on both Railway and Render.com.
+> **Note:** Alternative deployment guide. Backend tested on Render.com (see main DEPLOYMENT.md).
 
 ---
 

@@ -1,6 +1,6 @@
 [![CI](https://github.com/Dylan-Geraci/neuroimaging-tumor-detector/actions/workflows/ci.yml/badge.svg)](https://github.com/Dylan-Geraci/neuroimaging-tumor-detector/actions/workflows/ci.yml)
 
-> **Live Demo Note:** The frontend demo showcases the UI/UX design only. The backend API is not currently deployed due to hosting costs, but the full system (97.10% accuracy ResNet18 model with Grad-CAM visualizations) works perfectly when [run locally](#getting-started). Backend deployment was successfully implemented and tested on Render.com.
+> **Live Demo Note:** Frontend showcase only—backend not deployed due to hosting costs. Full system available via [local setup](#getting-started). Backend deployment tested on Render.com.
 
 # Brain Tumor Classification System
 
@@ -14,7 +14,7 @@ Deep learning system for classifying brain MRI scans into four categories (Gliom
 - Aggregated diagnosis with agreement scoring across batches
 - REST API for integration with clinical workflows
 - Production-ready security: API key authentication, rate limiting, input validation
-- Deployable to Railway.app with one click
+- Deployed on Render
 
 ## Tech Stack
 
@@ -25,15 +25,52 @@ Deep learning system for classifying brain MRI scans into four categories (Gliom
 
 ## Getting Started
 
+### Quick Start (Development Mode - Recommended)
+
+Run the backend and frontend separately with hot-reloading:
+
 ```bash
+# 1. Clone and setup backend
 git clone <repository-url>
 cd neuroimaging-tumor-detector
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
+# 2. Start backend (Terminal 1)
 python3 main.py
-# Open http://localhost:8000/
+
+# 3. Start frontend dev server (Terminal 2)
+cd frontend
+npm install
+npm run dev
+# Open http://localhost:5173
+```
+
+The frontend dev server proxies API calls to the backend automatically.
+
+### Alternative: Production-like Setup
+
+Run everything from a single server:
+
+```bash
+# 1. Setup backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# 2. Build frontend
+cd frontend
+npm install
+npm run build
+cd ..
+
+# 3. Copy build to static folder
+cp -r frontend/dist/* static/
+
+# 4. Start server
+python3 main.py
+# Open http://localhost:8000
 ```
 
 ## CLI Tools
@@ -53,10 +90,6 @@ python src/visualize.py                          # Grad-CAM visualizations
 
 ## Deployment
 
-### Quick Deploy to Railway
-
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/YOUR-TEMPLATE-ID)
-
 ### Environment Variables
 
 Create a `.env` file from `.env.example`:
@@ -70,7 +103,7 @@ cp .env.example .env
 - `APP_SECRET_KEY` - Generate with: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
 - `APP_API_KEYS` - Comma-separated API keys for authentication
 - `APP_CORS_ORIGINS` - Allowed frontend domains (e.g., `https://yourdomain.com`)
-- `APP_DATABASE_URL` - PostgreSQL connection string (Railway provides this)
+- `APP_DATABASE_URL` - PostgreSQL connection string (Render provides this)
 
 **Security Features:**
 - `APP_RATE_LIMIT_ENABLED=true` - Enable rate limiting (10 req/min default)
@@ -178,7 +211,7 @@ neuroimaging-tumor-detector/
 │   └── gradcam.py           # Attention visualization
 ├── frontend/                # React web interface
 ├── docs/
-│   ├── DEPLOYMENT.md        # Railway deployment guide
+│   ├── DEPLOYMENT.md        # Render deployment guide
 │   └── SECURITY.md          # Security best practices
 ├── scripts/
 │   └── download_model.py    # Hugging Face model downloader

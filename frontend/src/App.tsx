@@ -28,7 +28,7 @@ export default function App() {
 
   useEffect(() => {
     checkHealth().catch(() => {
-      setHealthWarning('Backend API unavailable. This demo is for UI/UX showcase only. To try predictions, run the project locally (see README).');
+      setHealthWarning('Backend unavailable—this is a frontend showcase. Run locally for predictions (see README).');
     });
   }, []);
 
