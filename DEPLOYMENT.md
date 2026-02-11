@@ -1,5 +1,14 @@
 # Deployment Guide
 
+## Current Deployment Status
+
+**Frontend:** ✅ Live on Vercel
+**Backend:** ⏸️ Not currently deployed (cost constraints)
+
+This guide documents the **complete deployment process** tested during development. The backend was successfully deployed to Render.com and worked in production. For portfolio/demonstration purposes, only the frontend remains live to showcase the UI/UX. To experience full functionality (predictions, Grad-CAM visualizations), follow the [local setup instructions](README.md#getting-started).
+
+---
+
 ## Prerequisites
 
 1. GitHub account (for deploying from repository)

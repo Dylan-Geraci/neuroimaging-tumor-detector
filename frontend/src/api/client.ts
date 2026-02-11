@@ -50,13 +50,15 @@ export function xhrUpload<T>(
       }
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve(data as T);
+      } else if (xhr.status === 503 || xhr.status === 502 || xhr.status === 0) {
+        reject(new Error('Backend API is currently unavailable. Run the project locally to test predictions.'));
       } else {
         reject(new Error((data as { detail?: string }).detail || `Request failed (${xhr.status})`));
       }
     });
 
     xhr.addEventListener('error', () => {
-      reject(new Error('Network error — please check your connection.'));
+      reject(new Error('Cannot reach backend API. This demo is frontend-only. See README to run locally.'));
     });
 
     xhr.send(formData);

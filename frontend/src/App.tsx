@@ -28,7 +28,7 @@ export default function App() {
 
   useEffect(() => {
     checkHealth().catch(() => {
-      setHealthWarning('Could not connect to the prediction API. Please ensure the backend is running.');
+      setHealthWarning('Backend API unavailable. This demo is for UI/UX showcase only. To try predictions, run the project locally (see README).');
     });
   }, []);
 
